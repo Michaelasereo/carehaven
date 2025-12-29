@@ -1,12 +1,24 @@
-import * as Sentry from '@sentry/nextjs'
-
-if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    tracesSampleRate: 1.0,
-    environment: process.env.NODE_ENV,
-  })
+// Sentry monitoring - optional
+// Install @sentry/nextjs to enable error tracking
+export function initSentry() {
+  // Placeholder - implement when Sentry is installed
+  if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    console.log('Sentry DSN configured but @sentry/nextjs not installed')
+  }
 }
 
-export { Sentry }
+// For now, just export no-op functions
+export const captureException = (error: Error) => {
+  console.error('Error (Sentry not configured):', error)
+}
 
+export const captureMessage = (message: string) => {
+  console.log('Message (Sentry not configured):', message)
+}
+
+// Export a Sentry-like object for compatibility
+export const Sentry = {
+  captureException,
+  captureMessage,
+  init: initSentry,
+}

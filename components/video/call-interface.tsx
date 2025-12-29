@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import DailyIframe from '@daily-co/daily-js/iframe'
+import DailyIframe from '@daily-co/daily-js'
 
 interface CallInterfaceProps {
   roomUrl: string

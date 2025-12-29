@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Care Haven - Telemedicine Platform
+
+A comprehensive telemedicine platform built with Next.js 15, Supabase, and Daily.co.
+
+## Features
+
+- Google OAuth authentication
+- Patient and Doctor dashboards
+- Video consultations via Daily.co
+- Appointment booking and management
+- Prescription management
+- Investigation requests
+- Real-time messaging
+- Payment processing with Paystack
+- Email notifications via Brevo
+- SMS notifications via Twilio
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS 4, shadcn/ui
+- **Backend**: Supabase (PostgreSQL, Auth, Storage, Realtime)
+- **Video**: Daily.co (HIPAA-compliant)
+- **Payments**: Paystack
+- **Email**: Brevo
+- **SMS**: Twilio
+- **Deployment**: Netlify
 
 ## Getting Started
 
-First, run the development server:
-
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Run database migrations in Supabase dashboard
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+5. Open [http://localhost:3000](http://localhost:3000)
 
-To learn more about Next.js, take a look at the following resources:
+## Environment Variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See `.env.example` for required environment variables.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database Migrations
 
-## Deploy on Vercel
+Run migrations in order:
+1. `001_initial_schema.sql`
+2. `002_rls_policies.sql`
+3. `003_indexes.sql`
+4. `004_audit_logging.sql`
+5. `005_realtime_setup.sql`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The project is configured for Netlify deployment. See `netlify.toml` for configuration.
+
+## License
+
+MIT

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -32,11 +33,15 @@ export function Sidebar() {
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-50 border-r">
       <div className="flex h-16 items-center px-6 border-b">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded bg-teal-600 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">C</span>
-          </div>
-          <span className="font-bold text-xl text-gray-900">Care Haven</span>
+        <div className="flex items-center">
+          <Image
+            src="/carehaven logo.svg"
+            alt="Care Haven Logo"
+            width={120}
+            height={32}
+            className="h-8 w-auto"
+            priority
+          />
         </div>
       </div>
 

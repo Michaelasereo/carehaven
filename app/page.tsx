@@ -1,28 +1,35 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded bg-teal-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
-            </div>
-            <span className="font-bold text-xl">Care Haven</span>
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 relative">
+          <div className="flex items-center">
+            <Image
+              src="/carehaven logo.svg"
+              alt="Care Haven Logo"
+              width={120}
+              height={32}
+              className="h-8 w-auto"
+              priority
+            />
           </div>
-          <nav className="flex items-center gap-4">
-            <Link href="/how-it-works">How it Works</Link>
-            <Link href="/faqs">FAQs</Link>
-            <Link href="/support">Support</Link>
+          <nav className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-4">
+            <Link href="/how-it-works" className="text-gray-700 hover:text-teal-600 transition-colors">How it Works</Link>
+            <Link href="/faqs" className="text-gray-700 hover:text-teal-600 transition-colors">FAQs</Link>
+            <Link href="/support" className="text-gray-700 hover:text-teal-600 transition-colors">Support</Link>
+          </nav>
+          <div className="flex items-center gap-4">
             <Link href="/auth/signin">
               <Button variant="ghost">Login</Button>
             </Link>
             <Link href="/auth/signin">
               <Button className="bg-teal-600 hover:bg-teal-700">Get Started</Button>
             </Link>
-          </nav>
+          </div>
         </div>
       </header>
 

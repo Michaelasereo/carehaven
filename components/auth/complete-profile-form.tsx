@@ -19,7 +19,7 @@ import {
 
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
-  phone: z.string().optional(),
+  phone: z.string().min(1, 'Phone number is required').regex(/^[0-9+\-\s()]+$/, 'Please enter a valid phone number'),
   date_of_birth: z.string().optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
 })
@@ -76,7 +76,7 @@ export function CompleteProfileForm() {
         .eq('id', user.id)
         .single()
 
-      const redirectPath = profile?.role === 'doctor' ? '/doctor' : '/patient'
+      const redirectPath = profile?.role === 'doctor' ? '/doctor/dashboard' : '/patient'
       router.push(redirectPath)
     } catch (error) {
       console.error('Error:', error)
@@ -101,12 +101,20 @@ export function CompleteProfileForm() {
       </div>
 
       <div>
-        <Label htmlFor="phone">Phone Number</Label>
+        <Label htmlFor="phone">Phone Number *</Label>
         <Input
           id="phone"
+          type="tel"
           {...register('phone')}
-          placeholder="Enter your phone number"
+          placeholder="e.g., 08141234567 or +2348141234567"
+          required
         />
+        {errors.phone && (
+          <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+        )}
+        <p className="mt-1 text-xs text-gray-500">
+          Required for SMS appointment notifications
+        </p>
       </div>
 
       <div>

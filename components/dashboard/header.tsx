@@ -5,17 +5,20 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Bell } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { NotificationBell } from '@/components/notifications/notification-bell'
+import { useUIStore } from '@/lib/store/ui-store'
+import { Menu } from 'lucide-react'
 
 export function Header() {
   const router = useRouter()
   const supabase = createClient()
+  const { toggleSidebar } = useUIStore()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
 
@@ -45,6 +48,14 @@ export function Header() {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6">
       <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={toggleSidebar}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <span className="text-gray-700">Welcome, {displayName}</span>
         <Avatar>
           <AvatarImage src={profile?.avatar_url} />
@@ -61,12 +72,12 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button className="bg-teal-600 hover:bg-teal-700">
-          + Book a Consultation
-        </Button>
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
+        {profile?.role === 'patient' && (
+          <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => router.push('/patient/appointments/book')}>
+            + Book a Consultation
+          </Button>
+        )}
+        <NotificationBell userId={user?.id} />
       </div>
     </header>
   )

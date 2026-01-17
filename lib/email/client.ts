@@ -1,4 +1,4 @@
-// Using Brevo REST API directly to avoid module resolution issues
+// Using Brevo API for email sending
 export async function sendEmail(
   to: string,
   subject: string,
@@ -21,7 +21,7 @@ export async function sendEmail(
       body: JSON.stringify({
         sender: {
           name: 'Care Haven',
-          email: 'noreply@carehaven.com',
+          email: 'mycarehaven@gmail.com',
         },
         to: [
           {

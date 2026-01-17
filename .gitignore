@@ -42,3 +42,9 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Environment setup scripts with secrets
+set-netlify-env.sh
+set-env-via-api.sh
+setup-netlify-env.sh
+netlify-env-commands.txt

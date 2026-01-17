@@ -1,0 +1,342 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect, notFound } from 'next/navigation'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { format } from 'date-fns'
+import { 
+  Calendar, 
+  DollarSign, 
+  FileText, 
+  Clock,
+  Pill,
+  Stethoscope
+} from 'lucide-react'
+import Link from 'next/link'
+
+export default async function PatientDetailPage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/admin/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
+    redirect('/patient')
+  }
+
+  // Fetch patient details
+  const { data: patient, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', params.id)
+    .eq('role', 'patient')
+    .single()
+
+  if (error || !patient) {
+    notFound()
+  }
+
+  // Fetch patient data
+  const [
+    { data: appointments },
+    { data: prescriptions },
+    { data: investigations },
+  ] = await Promise.all([
+    supabase
+      .from('appointments')
+      .select('*, profiles!appointments_doctor_id_fkey(full_name, specialty)')
+      .eq('patient_id', params.id)
+      .order('scheduled_at', { ascending: false }),
+    supabase
+      .from('prescriptions')
+      .select('*, profiles!prescriptions_doctor_id_fkey(full_name)')
+      .eq('patient_id', params.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('investigations')
+      .select('*, profiles!investigations_doctor_id_fkey(full_name)')
+      .eq('patient_id', params.id)
+      .order('created_at', { ascending: false }),
+  ])
+
+  const totalSpent = appointments
+    ?.filter(apt => apt.payment_status === 'paid')
+    .reduce((sum, apt) => sum + (Number(apt.amount) || 0), 0) || 0
+
+  const initials = patient.full_name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase() || 'P'
+
+  const age = patient.date_of_birth
+    ? new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear()
+    : null
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/patients">
+            <Button variant="outline" size="sm">← Back to Patients</Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Patient Details</h1>
+            <p className="text-gray-600 mt-1">View patient profile and medical history</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Profile Overview */}
+      <Card className="p-6">
+        <div className="flex items-start gap-6">
+          <Avatar className="h-24 w-24">
+            <AvatarImage src={patient.avatar_url || undefined} alt={patient.full_name || 'Patient'} />
+            <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl font-semibold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="text-2xl font-bold">{patient.full_name || 'Unknown'}</h2>
+              <Badge variant={patient.profile_completed ? 'default' : 'secondary'}>
+                {patient.profile_completed ? 'Complete' : 'Incomplete'}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Email</p>
+                <p className="font-medium">{patient.email || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Phone</p>
+                <p className="font-medium">{patient.phone || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Age</p>
+                <p className="font-medium">{age ? `${age} years` : 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Gender</p>
+                <p className="font-medium">{patient.gender || 'N/A'}</p>
+              </div>
+              {patient.blood_group && (
+                <div>
+                  <p className="text-sm text-gray-600">Blood Group</p>
+                  <p className="font-medium">{patient.blood_group}</p>
+                </div>
+              )}
+              {patient.allergies && patient.allergies.length > 0 && (
+                <div>
+                  <p className="text-sm text-gray-600">Allergies</p>
+                  <p className="font-medium">{patient.allergies.join(', ')}</p>
+                </div>
+              )}
+            </div>
+            {patient.chronic_conditions && patient.chronic_conditions.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm text-gray-600 mb-1">Chronic Conditions</p>
+                <p className="text-gray-900">{patient.chronic_conditions.join(', ')}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Appointments</p>
+              <p className="text-2xl font-bold mt-2">{appointments?.length || 0}</p>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <Calendar className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Spent</p>
+              <p className="text-2xl font-bold mt-2">₦{Math.round(totalSpent / 100).toLocaleString()}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <DollarSign className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Prescriptions</p>
+              <p className="text-2xl font-bold mt-2">{prescriptions?.length || 0}</p>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <Pill className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Tabs for Detailed Views */}
+      <Tabs defaultValue="medical-history" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="medical-history">Medical History</TabsTrigger>
+          <TabsTrigger value="appointments">Appointments</TabsTrigger>
+          <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+          <TabsTrigger value="investigations">Investigations</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="medical-history" className="space-y-4">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">All Appointments</h3>
+            <div className="space-y-3">
+              {appointments && appointments.length > 0 ? (
+                appointments.map((apt: any) => (
+                  <div
+                    key={apt.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {format(new Date(apt.scheduled_at), 'MMM d, yyyy')} - {apt.profiles?.full_name || 'Doctor'}
+                      </p>
+                      <p className="text-sm text-gray-600">{apt.profiles?.specialty}</p>
+                      {apt.chief_complaint && (
+                        <p className="text-sm text-gray-500 mt-1">Reason: {apt.chief_complaint}</p>
+                      )}
+                    </div>
+                    <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
+                      {apt.status}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-8">No appointments found</p>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appointments" className="space-y-4">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Appointment History</h3>
+            <div className="space-y-3">
+              {appointments && appointments.length > 0 ? (
+                appointments.map((apt: any) => (
+                  <div
+                    key={apt.id}
+                    className="p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-medium">{apt.profiles?.full_name || 'Doctor'}</p>
+                        <p className="text-sm text-gray-600">{apt.profiles?.specialty}</p>
+                      </div>
+                      <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
+                        {apt.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+                      <span>{format(new Date(apt.scheduled_at), 'MMM d, yyyy h:mm a')}</span>
+                      {apt.amount && (
+                        <span>₦{Math.round(Number(apt.amount) / 100).toLocaleString()}</span>
+                      )}
+                    </div>
+                    {apt.chief_complaint && (
+                      <p className="text-sm text-gray-700 mt-2">{apt.chief_complaint}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-8">No appointments found</p>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="prescriptions" className="space-y-4">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Prescription History</h3>
+            <div className="space-y-3">
+              {prescriptions && prescriptions.length > 0 ? (
+                prescriptions.map((prescription: any) => (
+                  <div
+                    key={prescription.id}
+                    className="p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium">Prescribed by {prescription.profiles?.full_name || 'Doctor'}</p>
+                      <span className="text-sm text-gray-600">
+                        {format(new Date(prescription.created_at), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                    {prescription.medications && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-600">Medications:</p>
+                        <pre className="text-sm mt-1 bg-gray-50 p-2 rounded">
+                          {JSON.stringify(prescription.medications, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-8">No prescriptions found</p>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="investigations" className="space-y-4">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Investigation History</h3>
+            <div className="space-y-3">
+              {investigations && investigations.length > 0 ? (
+                investigations.map((investigation: any) => (
+                  <div
+                    key={investigation.id}
+                    className="p-4 border rounded-lg"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium">{investigation.type || 'Investigation'}</p>
+                      <Badge variant={investigation.status === 'completed' ? 'default' : 'secondary'}>
+                        {investigation.status}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Requested by {investigation.profiles?.full_name || 'Doctor'} on{' '}
+                      {format(new Date(investigation.created_at), 'MMM d, yyyy')}
+                    </p>
+                    {investigation.results && (
+                      <p className="text-sm text-gray-700 mt-2">{investigation.results}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-8">No investigations found</p>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

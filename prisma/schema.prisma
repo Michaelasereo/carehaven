@@ -1,0 +1,350 @@
+// Prisma Schema for Care Haven
+// This schema is generated from the existing Supabase PostgreSQL database
+// Generator: Prisma Client
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Datasource: Supabase PostgreSQL
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Note: Using String types instead of enums to match existing Supabase schema
+// which uses TEXT columns with CHECK constraints
+
+// Enums (commented out - database uses TEXT with CHECK constraints)
+// enum UserRole {
+//   patient
+//   doctor
+//   admin
+//   super_admin
+// }
+
+// enum Gender {
+//   male
+//   female
+//   other
+// }
+
+// Note: All status fields use String to match existing TEXT columns with CHECK constraints
+// enum AppointmentStatus {
+//   scheduled
+//   confirmed
+//   in_progress
+//   completed
+//   cancelled
+//   no_show
+// }
+
+// enum PaymentStatus {
+//   pending
+//   paid
+//   failed
+//   refunded
+// }
+
+// enum PrescriptionStatus {
+//   active
+//   filled
+//   expired
+//   cancelled
+// }
+
+// enum InvestigationStatus {
+//   requested
+//   in_progress
+//   completed
+//   cancelled
+// }
+
+// enum NotificationType {
+//   appointment
+//   prescription
+//   investigation
+//   message
+//   system
+// }
+
+// Models
+
+model Profile {
+  id                String    @id @default(uuid()) @db.Uuid
+  role              String    @default("patient") // TEXT with CHECK constraint in DB
+  
+  // Basic info (from Google OAuth)
+  fullName          String?   @map("full_name")
+  avatarUrl         String?   @map("avatar_url")
+  email             String?   @unique
+  
+  // Profile completion status
+  profileCompleted  Boolean   @default(false) @map("profile_completed")
+  onboardedAt      DateTime? @map("onboarded_at") @db.Timestamptz(6)
+  
+  // Patient-specific fields (nullable for doctors)
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  gender            String?   // TEXT with CHECK constraint in DB
+  phone             String?
+  bloodGroup        String?   @map("blood_group")
+  allergies         String[]  @default([])
+  chronicConditions String[]  @default([]) @map("chronic_conditions")
+  occupation        String?
+  maritalStatus     String?   @map("marital_status")
+  
+  // Doctor-specific fields (nullable for patients)
+  licenseNumber     String?   @unique @map("license_number")
+  licenseVerified   Boolean   @default(false) @map("license_verified")
+  specialty         String?
+  yearsExperience   Int?      @map("years_experience")
+  consultationFee    Decimal?  @default(20000.00) @map("consultation_fee") @db.Decimal(10, 2)
+  currency          String?   @default("NGN")
+  bio               String?
+  
+  // Notification preferences (JSONB)
+  notificationPreferences Json? @map("notification_preferences") @db.JsonB
+  
+  // Timestamps
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  patientAppointments     Appointment[]          @relation("PatientAppointments")
+  doctorAppointments      Appointment[]          @relation("DoctorAppointments")
+  consultationNotes       ConsultationNote[]
+  prescriptionsAsPatient  Prescription[]         @relation("PatientPrescriptions")
+  prescriptionsAsDoctor   Prescription[]         @relation("DoctorPrescriptions")
+  investigationsAsPatient Investigation[]        @relation("PatientInvestigations")
+  investigationsAsDoctor  Investigation[]        @relation("DoctorInvestigations")
+  notifications           Notification[]
+  sentMessages            Message[]              @relation("SentMessages")
+  receivedMessages        Message[]              @relation("ReceivedMessages")
+  doctorAvailability      DoctorAvailability[]
+  
+  @@map("profiles")
+  @@index([role])
+  @@index([specialty])
+  @@index([email])
+}
+
+model Appointment {
+  id                String           @id @default(uuid()) @db.Uuid
+  patientId         String           @map("patient_id") @db.Uuid
+  doctorId          String           @map("doctor_id") @db.Uuid
+  
+  scheduledAt       DateTime         @map("scheduled_at") @db.Timestamptz(6)
+  durationMinutes   Int             @default(30) @map("duration_minutes")
+  status            String          @default("scheduled") // TEXT with CHECK constraint
+  
+  // Consultation details
+  chiefComplaint    String?          @map("chief_complaint")
+  symptomsDescription String?        @map("symptoms_description")
+  
+  // Video call details
+  dailyRoomName     String?          @unique @map("daily_room_name")
+  dailyRoomUrl      String?          @map("daily_room_url")
+  recordingId       String?          @map("recording_id")
+  recordingUrl      String?          @map("recording_url")
+  
+  // Payment
+  amount            Decimal?         @db.Decimal(10, 2)
+  currency          String?          @default("NGN")
+  paystackReference String?         @map("paystack_reference")
+  paymentStatus     String          @default("pending") @map("payment_status") // TEXT with CHECK constraint
+  
+  // Timestamps
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  patient           Profile          @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor            Profile          @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  consultationNotes ConsultationNote[]
+  prescriptions     Prescription[]
+  investigations    Investigation[]
+  messages          Message[]
+  
+  @@map("appointments")
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([paymentStatus])
+}
+
+model ConsultationNote {
+  id            String    @id @default(uuid()) @db.Uuid
+  appointmentId String    @map("appointment_id") @db.Uuid
+  doctorId      String    @map("doctor_id") @db.Uuid
+  
+  // SOAP format
+  subjective    String?
+  objective     String?
+  assessment    String?
+  plan          String?
+  
+  // Diagnosis and prescription
+  diagnosis     String?
+  prescription  Json?     @db.JsonB
+  
+  // Timestamps
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  doctor        Profile     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  @@map("consultation_notes")
+  @@index([appointmentId])
+  @@index([doctorId])
+}
+
+model Prescription {
+  id              String            @id @default(uuid()) @db.Uuid
+  appointmentId   String            @map("appointment_id") @db.Uuid
+  patientId       String            @map("patient_id") @db.Uuid
+  doctorId        String            @map("doctor_id") @db.Uuid
+  
+  medications     Json              @db.JsonB
+  instructions    String?
+  durationDays    Int?              @map("duration_days")
+  refillsRemaining Int              @default(0) @map("refills_remaining")
+  
+  status          String            @default("active") // TEXT with CHECK constraint
+  filledAt        DateTime?         @map("filled_at") @db.Timestamptz(6)
+  expiresAt       DateTime?         @map("expires_at") @db.Timestamptz(6)
+  
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  // Relations
+  appointment     Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient         Profile           @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor          Profile           @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  @@map("prescriptions")
+  @@index([patientId])
+  @@index([appointmentId])
+  @@index([status])
+}
+
+model Investigation {
+  id            String              @id @default(uuid()) @db.Uuid
+  appointmentId String              @map("appointment_id") @db.Uuid
+  patientId     String              @map("patient_id") @db.Uuid
+  doctorId      String              @map("doctor_id") @db.Uuid
+  
+  testName      String              @map("test_name")
+  testType      String?             @map("test_type")
+  status        String              @default("requested") // TEXT with CHECK constraint
+  
+  requestedAt   DateTime            @default(now()) @map("requested_at") @db.Timestamptz(6)
+  completedAt   DateTime?           @map("completed_at") @db.Timestamptz(6)
+  
+  // Results
+  resultsUrl    String?             @map("results_url")
+  resultsText   String?             @map("results_text")
+  interpretation String?
+  
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  appointment   Appointment         @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient       Profile             @relation("PatientInvestigations", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor        Profile             @relation("DoctorInvestigations", fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  @@map("investigations")
+  @@index([patientId])
+  @@index([appointmentId])
+  @@index([status])
+}
+
+model Notification {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  type      String          // TEXT with CHECK constraint
+  title     String
+  body      String?
+  data      Json?           @db.JsonB
+  
+  read      Boolean         @default(false)
+  readAt    DateTime?       @map("read_at") @db.Timestamptz(6)
+  
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  // Relations
+  user      Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model Message {
+  id            String       @id @default(uuid()) @db.Uuid
+  senderId      String       @map("sender_id") @db.Uuid
+  receiverId    String       @map("receiver_id") @db.Uuid
+  appointmentId String?      @map("appointment_id") @db.Uuid
+  
+  content       String
+  attachments   Json?        @db.JsonB
+  
+  read          Boolean      @default(false)
+  readAt        DateTime?    @map("read_at") @db.Timestamptz(6)
+  
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  // Relations
+  sender        Profile      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver      Profile      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  
+  @@map("messages")
+  @@index([senderId, receiverId])
+  @@index([appointmentId])
+  @@index([createdAt])
+}
+
+model DoctorAvailability {
+  id          String   @id @default(uuid()) @db.Uuid
+  doctorId   String   @map("doctor_id") @db.Uuid
+  
+  dayOfWeek  Int      @map("day_of_week")
+  startTime  DateTime @map("start_time") @db.Time(6)
+  endTime    DateTime @map("end_time") @db.Time(6)
+  
+  active     Boolean  @default(true)
+  
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  doctor     Profile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  @@unique([doctorId, dayOfWeek, startTime])
+  @@map("doctor_availability")
+  @@index([doctorId])
+  @@index([active])
+}
+
+model AuditLog {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  action    String
+  tableName String?   @map("table_name")
+  recordId  String?   @map("record_id") @db.Uuid
+  oldData   Json?     @map("old_data") @db.JsonB
+  newData   Json?     @map("new_data") @db.JsonB
+  ipAddress String?   @map("ip_address") @db.Inet
+  userAgent String?   @map("user_agent")
+  
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  @@map("audit_logs")
+  @@index([userId])
+  @@index([tableName])
+  @@index([createdAt])
+}

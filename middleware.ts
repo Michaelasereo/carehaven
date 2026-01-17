@@ -1,23 +1,21 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
-// Minimal middleware - NO external dependencies, NO Edge Runtime issues
-// Auth will be handled in individual route handlers
-export function middleware(request: NextRequest) {
-  // Just pass through for now - no auth checks
-  return NextResponse.next()
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
 }
 
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api routes (handled separately)
+     * - public folder files
+     * - auth routes (signin, signup, verify-email)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|auth/|api/auth/).*)',
   ],
-  // Explicitly NOT using Edge Runtime to avoid eval() issues
 }

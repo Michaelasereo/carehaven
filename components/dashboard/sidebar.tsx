@@ -12,12 +12,14 @@ import {
   Bell,
   User,
   Settings,
+  Pill,
 } from 'lucide-react'
 
 const patientNavItems = [
   { href: '/patient', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/patient/sessions', label: 'Sessions', icon: Calendar },
   { href: '/patient/appointments', label: 'Appointments', icon: CalendarDays },
+  { href: '/patient/prescriptions', label: 'Prescriptions', icon: Pill },
   { href: '/patient/investigations', label: 'Investigations', icon: Stethoscope },
   { href: '/patient/notifications', label: 'Notifications', icon: Bell },
 ]
@@ -35,12 +37,13 @@ export function Sidebar() {
       <div className="flex h-16 items-center px-6 border-b">
         <div className="flex items-center">
           <Image
-            src="/carehaven logo.svg"
+            src="/carehaven%20logo.svg"
             alt="Care Haven Logo"
             width={120}
             height={32}
             className="h-8 w-auto"
             priority
+            unoptimized
           />
         </div>
       </div>
@@ -71,7 +74,7 @@ export function Sidebar() {
 
         {userNavItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
           
           return (
             <Link

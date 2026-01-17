@@ -1,21 +1,98 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { LucideIcon } from 'lucide-react'
+import { TrendIndicator } from '@/components/doctor/trend-indicator'
 
 interface MetricCardProps {
   icon: LucideIcon
   value: string | number
   label: string
+  color?: string
+  bgColor?: string
+  trend?: {
+    value: number
+    period: string
+  }
+  realtimeTable?: 'appointments' | 'notifications' | 'investigations'
+  realtimeFilter?: Record<string, any>
 }
 
-export function MetricCard({ icon: Icon, value, label }: MetricCardProps) {
+export function MetricCard({ 
+  icon: Icon, 
+  value: initialValue, 
+  label,
+  color = 'text-teal-600',
+  bgColor = 'bg-teal-100',
+  trend,
+  realtimeTable,
+  realtimeFilter,
+}: MetricCardProps) {
+  const [value, setValue] = useState(initialValue)
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (!realtimeTable) return
+
+    let timeoutId: NodeJS.Timeout
+
+    const channel = supabase
+      .channel(`patient-metrics-${label.toLowerCase().replace(/\s+/g, '-')}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: realtimeTable,
+          filter: realtimeFilter ? Object.entries(realtimeFilter).map(([key, val]) => `${key}=eq.${val}`).join(',') : undefined,
+        },
+        () => {
+          // Debounce updates (500ms)
+          clearTimeout(timeoutId)
+          timeoutId = setTimeout(async () => {
+            if (realtimeTable === 'appointments') {
+              const { count } = await supabase
+                .from('appointments')
+                .select('*', { count: 'exact', head: true })
+                .match(realtimeFilter || {})
+              if (count !== null) setValue(count)
+            } else if (realtimeTable === 'notifications') {
+              const { count } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .match(realtimeFilter || {})
+              if (count !== null) setValue(count)
+            } else if (realtimeTable === 'investigations') {
+              const { count } = await supabase
+                .from('investigations')
+                .select('*', { count: 'exact', head: true })
+                .match(realtimeFilter || {})
+              if (count !== null) setValue(count)
+            }
+          }, 500)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      clearTimeout(timeoutId)
+      supabase.removeChannel(channel)
+    }
+  }, [realtimeTable, realtimeFilter, label, supabase])
+
   return (
     <Card className="p-6">
       <div className="flex items-center gap-4">
-        <div className="p-3 rounded-lg bg-teal-100">
-          <Icon className="h-6 w-6 text-teal-600" />
+        <div className={`p-3 rounded-lg ${bgColor}`}>
+          <Icon className={`h-6 w-6 ${color}`} />
         </div>
-        <div>
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2">
           <div className="text-3xl font-bold text-gray-900">{value}</div>
+            {trend && <TrendIndicator value={trend.value} period={trend.period} />}
+          </div>
           <div className="text-sm text-gray-600">{label}</div>
         </div>
       </div>

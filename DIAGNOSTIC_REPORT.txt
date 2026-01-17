@@ -1,0 +1,23 @@
+=== DIAGNOSTIC REPORT ===
+Date: $(date)
+Issue: 500 Internal Server Error on all page routes
+API Routes: Working (200 status)
+Page Routes: Failing (500 status)
+
+=== KEY FINDINGS ===
+1. API routes work - server is functional
+2. All page routes fail - layout/middleware issue
+3. Error: EvalError in Edge Runtime middleware compilation
+4. Production build works - issue is dev-specific
+5. Even minimal middleware causes error
+
+=== TEST RESULTS ===
+/test: 500
+/: 500
+/api/debug/error: 200 ✅
+
+=== RECOMMENDED ACTIONS ===
+1. Review Next.js 15 Edge Runtime compatibility
+2. Check @supabase/ssr version compatibility
+3. Consider downgrading Next.js to 14.x
+4. Or remove middleware and use route-level auth

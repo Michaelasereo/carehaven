@@ -12,7 +12,7 @@ A comprehensive telemedicine platform built with Next.js 15, Supabase, and Daily
 - Investigation requests
 - Real-time messaging
 - Payment processing with Paystack
-- Email notifications via Brevo
+- Email notifications via Resend (with Brevo fallback)
 - SMS notifications via Twilio
 
 ## Tech Stack
@@ -21,7 +21,7 @@ A comprehensive telemedicine platform built with Next.js 15, Supabase, and Daily
 - **Backend**: Supabase (PostgreSQL, Auth, Storage, Realtime)
 - **Video**: Daily.co (HIPAA-compliant)
 - **Payments**: Paystack
-- **Email**: Brevo
+- **Email**: Resend (primary), Brevo (fallback)
 - **SMS**: Twilio
 - **Deployment**: Netlify
 

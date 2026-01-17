@@ -85,7 +85,7 @@ Verifies the email token and confirms the user's email.
    - Check Resend dashboard for API key status
 
 2. **Check Resend Sender Email**
-   - Current sender: `aseorepeyemimichael@gmail.com`
+   - Current sender: `asereopeyemimichael@gmail.com`
    - Make sure this email is verified in Resend
    - Or update to a verified sender email in `lib/email/client.ts`
 
@@ -99,7 +99,7 @@ Verifies the email token and confirms the user's email.
      -H "Authorization: Bearer YOUR_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{
-       "from": "Care Haven <aseorepeyemimichael@gmail.com>",
+       "from": "Care Haven <asereopeyemimichael@gmail.com>",
        "to": ["test@example.com"],
        "subject": "Test",
        "html": "<p>Test email</p>"

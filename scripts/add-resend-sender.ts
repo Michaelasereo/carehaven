@@ -12,7 +12,7 @@ import { resolve } from 'path'
 config({ path: resolve(process.cwd(), '.env.local') })
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
-const senderEmail = process.argv[2] || 'aseorepeyemimichael@gmail.com'
+const senderEmail = process.argv[2] || 'asereopeyemimichael@gmail.com'
 
 async function showInstructions() {
   console.log('\n📧 Resend Sender Email Verification')

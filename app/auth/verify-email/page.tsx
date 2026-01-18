@@ -116,10 +116,11 @@ function VerifyEmailContent() {
       }
       
       // Session exists, redirect to appropriate dashboard
-      // For admin flow, always redirect to admin dashboard
+      // For admin flow, always redirect to admin dashboard (respect admin flag even if role differs)
       if (isAdmin) {
         router.push('/admin/dashboard')
       } else {
+        // Use redirectPath from server (which is role-based) or default to /patient
         const redirectPath = result.redirectPath || '/patient'
         router.push(redirectPath)
       }
@@ -140,11 +141,28 @@ function VerifyEmailContent() {
     setError(null)
 
     try {
-      // Get user ID from session
+      // Try to get user ID from session first
+      let userId: string | null = null
       const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) {
-        setError('User not found. Please sign up again.')
+      if (user) {
+        userId = user.id
+      } else {
+        // If no session, try to find user by email via API
+        // This handles cases where session expired but user exists
+        try {
+          const userResponse = await fetch(`/api/auth/get-user-by-email?email=${encodeURIComponent(email)}`)
+          if (userResponse.ok) {
+            const userData = await userResponse.json()
+            userId = userData.userId
+          }
+        } catch (err) {
+          console.warn('Could not fetch user by email:', err)
+        }
+      }
+      
+      if (!userId) {
+        setError('User not found. Please try signing up again.')
         setResending(false)
         return
       }
@@ -152,13 +170,29 @@ function VerifyEmailContent() {
       const response = await fetch('/api/auth/send-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, userId: user.id }),
+        body: JSON.stringify({ email, userId }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        setError(result.error || 'Failed to resend verification code')
+        // Show more user-friendly error message based on error type
+        const errorMsg = result.error || 'Failed to resend verification code'
+        let displayError = errorMsg
+        
+        if (errorMsg.includes('wait') || errorMsg.includes('60 seconds') || response.status === 429) {
+          displayError = 'Please wait 60 seconds before requesting another code.'
+        } else if (errorMsg.includes('not configured') || errorMsg.includes('Email service')) {
+          displayError = 'Email service is temporarily unavailable. Please try again later or contact support.'
+        } else if (errorMsg.includes('not found') || response.status === 404) {
+          displayError = 'User not found. Please try signing up again.'
+        } else if (response.status === 400) {
+          displayError = 'Invalid request. Please check your email address and try again.'
+        } else if (response.status >= 500) {
+          displayError = 'Server error. Please try again in a moment or contact support if the issue persists.'
+        }
+        
+        setError(displayError)
         setResending(false)
         return
       }

@@ -18,10 +18,12 @@ async function checkRateLimit(email: string): Promise<boolean> {
     return true // No recent code, allow
   }
 
-  // Check if a code was sent in the last 60 seconds
-  const codeAge = Date.now() - new Date(latestCode.expires_at).getTime() + (15 * 60 * 1000) // Time since creation
+  // Check if a code was sent in the last 60 seconds using created_at
+  const codeCreatedAt = new Date(latestCode.created_at).getTime()
+  const now = Date.now()
+  const timeSinceLastCode = now - codeCreatedAt
   
-  if (codeAge < 60 * 1000) {
+  if (timeSinceLastCode < 60 * 1000) {
     // Less than 60 seconds since last code was sent
     return false
   }
@@ -31,14 +33,43 @@ async function checkRateLimit(email: string): Promise<boolean> {
 
 export async function POST(request: Request) {
   try {
+    // Validate environment variables
+    if (!process.env.BREVO_API_KEY) {
+      console.error('❌ BREVO_API_KEY is not configured')
+      return NextResponse.json(
+        { error: 'Email service is not configured. Please contact support.' },
+        { status: 500 }
+      )
+    }
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('❌ Supabase environment variables are missing')
+      return NextResponse.json(
+        { error: 'Server configuration error. Please contact support.' },
+        { status: 500 }
+      )
+    }
+
     const { email, userId } = await request.json()
 
+    // Validate email format
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Please provide a valid email address' }, { status: 400 })
+    }
+
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    }
+
+    // Validate userId format (should be UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(userId)) {
+      return NextResponse.json({ error: 'Invalid user ID format' }, { status: 400 })
     }
 
     // Rate limiting check

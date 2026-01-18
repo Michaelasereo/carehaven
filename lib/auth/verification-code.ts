@@ -110,10 +110,10 @@ export async function markCodeAsUsed(code: string, email: string): Promise<void>
  */
 export async function getLatestCodeForEmail(
   email: string
-): Promise<{ code: string; expires_at: string } | null> {
+): Promise<{ code: string; expires_at: string; created_at: string } | null> {
   const { data, error } = await supabase
     .from('email_verification_codes')
-    .select('code, expires_at')
+    .select('code, expires_at, created_at')
     .eq('email', email)
     .eq('used', false)
     .order('created_at', { ascending: false })

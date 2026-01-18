@@ -170,7 +170,7 @@ export function DoctorEnrollmentForm() {
     <div className="bg-white rounded-lg shadow-lg p-8">
       <div className="text-center mb-8">
         <Image
-          src="/carehaven%20logo.svg"
+          src="/carehaven-logo.svg"
           alt="Care Haven Logo"
           width={150}
           height={40}

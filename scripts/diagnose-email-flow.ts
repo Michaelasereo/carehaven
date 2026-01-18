@@ -67,8 +67,8 @@ async function diagnoseEmailFlow() {
   console.log('Step 3: Testing verification code API endpoint...')
   
   // First, create a test user
-  const testUserId = `test-${Date.now()}`
-  const testUserEmail = `test-${Date.now()}@carehaven.test`
+  let testUserId = `test-${Date.now()}`
+  let testUserEmail = `test-${Date.now()}@carehaven.test`
   
   try {
     // Create user in Supabase auth

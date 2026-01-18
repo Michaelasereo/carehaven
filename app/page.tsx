@@ -58,7 +58,7 @@ export default function Home() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6 relative">
           <div className="flex items-center">
         <Image
-          src="/carehaven%20logo.svg"
+          src="/carehaven-logo.svg"
           alt="Care Haven Logo"
           width={120}
           height={32}

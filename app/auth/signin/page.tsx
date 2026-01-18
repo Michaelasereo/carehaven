@@ -10,7 +10,7 @@ export default function SignInPage() {
         <div className="text-center">
           <div className="flex justify-center mb-6">
             <Image
-              src="/carehaven%20logo.svg"
+              src="/carehaven-logo.svg"
               alt="Care Haven Logo"
               width={200}
               height={64}

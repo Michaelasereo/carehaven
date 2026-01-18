@@ -8,7 +8,7 @@ export function Footer() {
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           <div>
             <Image
-              src="/carehaven%20logo.svg"
+              src="/carehaven-logo.svg"
               alt="Care Haven Logo"
               width={150}
               height={40}

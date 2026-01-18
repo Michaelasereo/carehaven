@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { Suspense } from 'react'
 import { AdminSignInForm } from '@/components/auth/admin-signin-form'
 
 export default function AdminLoginPage() {
@@ -8,7 +9,7 @@ export default function AdminLoginPage() {
         <div className="text-center">
           <div className="flex justify-center mb-6">
             <Image
-              src="/carehaven%20logo.svg"
+              src="/carehaven-logo.svg"
               alt="Care Haven Logo"
               width={200}
               height={64}
@@ -21,7 +22,9 @@ export default function AdminLoginPage() {
           <p className="mt-2 text-gray-600">Sign in to access the admin dashboard</p>
         </div>
         
-        <AdminSignInForm />
+        <Suspense fallback={<div className="text-center py-4">Loading...</div>}>
+          <AdminSignInForm />
+        </Suspense>
       </div>
     </div>
   )

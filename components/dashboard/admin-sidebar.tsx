@@ -61,7 +61,7 @@ export function AdminSidebar() {
         <div className="flex h-16 items-center justify-between px-6 border-b">
           <div className="flex items-center">
             <Image
-              src="/carehaven%20logo.svg"
+              src="/carehaven-logo.svg"
               alt="Care Haven Logo"
               width={120}
               height={32}

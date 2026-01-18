@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { Suspense } from 'react'
 import { DoctorSignInForm } from '@/components/auth/doctor-signin-form'
 
 export default function DoctorLoginPage() {
@@ -8,7 +9,7 @@ export default function DoctorLoginPage() {
         <div className="text-center">
           <div className="flex justify-center mb-6">
             <Image
-              src="/carehaven%20logo.svg"
+              src="/carehaven-logo.svg"
               alt="Care Haven Logo"
               width={200}
               height={64}
@@ -21,7 +22,9 @@ export default function DoctorLoginPage() {
           <p className="mt-2 text-gray-600">Sign in to access the doctor dashboard</p>
         </div>
         
-        <DoctorSignInForm />
+        <Suspense fallback={<div className="text-center py-4">Loading...</div>}>
+          <DoctorSignInForm />
+        </Suspense>
       </div>
     </div>
   )

@@ -102,9 +102,9 @@ export default function Home() {
           </Link>
           <p className="mt-4 text-sm md:text-base text-gray-600 px-4">
             Are you a healthcare provider?{' '}
-            <Link href="/doctor-enrollment" className="text-teal-600 hover:underline">
+            <a href="mailto:mycarehaven@gmail.com" className="text-teal-600 hover:underline">
               Join our platform→
-            </Link>
+            </a>
           </p>
         </section>
 

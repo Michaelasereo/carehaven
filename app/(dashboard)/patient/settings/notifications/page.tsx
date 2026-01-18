@@ -118,7 +118,7 @@ export default function NotificationsSettingsPage() {
             <Switch
               id="email-notifications"
               checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
+              disabled={true}
             />
           </div>
 
@@ -140,19 +140,15 @@ export default function NotificationsSettingsPage() {
               <Switch
                 id="sms-notifications"
                 checked={smsNotifications}
-                onCheckedChange={setSmsNotifications}
+                disabled={true}
               />
             </div>
           </div>
 
-          <div className="flex justify-end pt-4 border-t">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-teal-600 hover:bg-teal-700"
-            >
-              {saving ? 'Saving...' : 'Save Preferences'}
-            </Button>
+          <div className="pt-4 border-t">
+            <p className="text-sm text-gray-500 italic">
+              Notification settings are fixed for now. This will be editable in a future update.
+            </p>
           </div>
         </div>
       </Card>

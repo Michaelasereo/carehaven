@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyPayment } from '@/lib/paystack/client'
 import { createRoom } from '@/lib/daily/client'
-import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked } from '@/lib/notifications/triggers'
+import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail } from '@/lib/notifications/triggers'
 
 /**
  * Payment Callback Handler
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     // Find appointment by payment reference
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
-      .select('id, doctor_id, patient_id, scheduled_at')
+      .select('id, doctor_id, patient_id, scheduled_at, chief_complaint, symptoms_description')
       .eq('paystack_reference', reference)
       .single()
 
@@ -85,19 +85,33 @@ export async function GET(request: Request) {
       console.error('Error creating video room:', roomError)
     }
 
-    // Create notifications
+    // Create notifications and send emails
     try {
       const { data: doctor } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, email')
         .eq('id', appointment.doctor_id)
         .single()
 
       const { data: patient } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, chronic_conditions, gender, date_of_birth')
         .eq('id', appointment.patient_id)
         .single()
+
+      // Calculate age from date_of_birth if available
+      let age: string | undefined
+      if (patient?.date_of_birth) {
+        const birthDate = new Date(patient.date_of_birth)
+        const today = new Date()
+        const calculatedAge = today.getFullYear() - birthDate.getFullYear()
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age = String(calculatedAge - 1)
+        } else {
+          age = String(calculatedAge)
+        }
+      }
 
       await notifyAppointmentConfirmed(
         appointment.patient_id,
@@ -112,6 +126,23 @@ export async function GET(request: Request) {
         patient?.full_name || 'Patient',
         new Date(appointment.scheduled_at)
       )
+
+      // Send detailed email to doctor
+      if (doctor?.email) {
+        await sendDoctorAppointmentEmail(
+          doctor.email,
+          doctor.full_name || 'Doctor',
+          patient?.full_name || 'Patient',
+          new Date(appointment.scheduled_at),
+          {
+            reason: appointment.chief_complaint,
+            complaints: appointment.symptoms_description,
+            chronicConditions: patient?.chronic_conditions || [],
+            gender: patient?.gender || null,
+            age: age || null,
+          }
+        )
+      }
     } catch (notifError) {
       console.error('Error creating notifications:', notifError)
       // Don't fail the payment flow if notifications fail

@@ -2,14 +2,16 @@
 
 ## Overview
 
-This application uses **Supabase's native email verification** with **Brevo SMTP** for sending emails. Supabase handles the verification flow automatically, and emails are sent through Brevo SMTP configured in the Supabase dashboard.
+This application uses **Supabase's native email verification service** for verification emails. SMTP is currently **disabled** (code is kept for future use). General emails (notifications, alerts) use Resend/Brevo.
 
 ## How It Works
 
 1. **User signs up** → Account created in Supabase via `supabase.auth.signUp()`
-2. **Verification email sent** → Supabase automatically sends verification email via Brevo SMTP
+2. **Verification email sent** → Supabase automatically sends verification email via native email service (SMTP disabled)
 3. **User clicks link** → Supabase handles verification via `/auth/callback`
 4. **Email confirmed** → User can now sign in
+
+**Note:** SMTP configuration is disabled but code remains for future re-enablement.
 
 ## Setup Steps
 
@@ -30,17 +32,26 @@ supabase migration up
 Make sure these are set in `.env.local`:
 
 ```bash
-BREVO_API_KEY=your_brevo_api_key  # For programmatic emails (notifications)
-BREVO_SMTP_KEY=xsmtpsib-...  # For Supabase SMTP configuration (optional - configured in Supabase dashboard)
+# Supabase (Required for verification emails)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Email Services (for general emails - notifications, alerts)
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Optional - for general emails
+BREVO_API_KEY=your_brevo_api_key  # Fallback for general emails
+
+# App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000  # For local dev
 # Or for production:
 # NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
 
 **Note:** 
-- Email verification uses Supabase's native flow with Brevo SMTP configured in the Supabase dashboard
-- The `BREVO_API_KEY` is used for programmatic emails (notifications, alerts) sent via the `lib/email/client.ts` module
-- The `BREVO_SMTP_KEY` should be configured in Supabase Dashboard → Settings → Auth → SMTP Settings (not in `.env.local` for runtime use)
+- **Verification emails** use Supabase's native email service (SMTP disabled)
+- **General emails** (notifications, alerts) use Resend → Brevo fallback via `lib/email/client.ts`
+- SMTP configuration is **disabled** but code is kept for future re-enablement
+- No SMTP configuration needed in Supabase dashboard for verification emails
 
 ### 3. Test the Flow
 
@@ -78,33 +89,35 @@ Verifies the email token and confirms the user's email.
 
 ## Troubleshooting
 
-### Emails Still Not Sending
+### Verification Emails Not Sending
 
-1. **Check Resend API Key**
-   - Verify `RESEND_API_KEY` is set correctly
-   - Check Resend dashboard for API key status
+1. **Check Supabase Configuration**
+   - Verify `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set
+   - Check Supabase dashboard → Authentication → Settings
+   - Ensure email confirmations are enabled
 
-2. **Check Resend Sender Email**
-   - Current sender: `asereopeyemimichael@gmail.com`
-   - Make sure this email is verified in Resend
-   - Or update to a verified sender email in `lib/email/client.ts`
+2. **Check Supabase Email Service**
+   - Go to Supabase Dashboard → Settings → Auth
+   - Verify email service is enabled (SMTP is disabled, using native service)
+   - Check email rate limits if on free tier
 
 3. **Check Server Logs**
    - Look for errors in terminal/console
-   - Check Resend dashboard for delivery status
+   - Check for "Verification email sent via Supabase native email service" message
 
-4. **Test Resend API Directly**
-   ```bash
-   curl -X POST https://api.resend.com/emails \
-     -H "Authorization: Bearer YOUR_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "from": "Care Haven <asereopeyemimichael@gmail.com>",
-       "to": ["test@example.com"],
-       "subject": "Test",
-       "html": "<p>Test email</p>"
-     }'
-   ```
+### General Emails (Notifications) Not Sending
+
+1. **Check Resend API Key** (for general emails)
+   - Verify `RESEND_API_KEY` is set correctly
+   - Check Resend dashboard for API key status
+
+2. **Check Brevo API Key** (fallback for general emails)
+   - Verify `BREVO_API_KEY` is set correctly
+   - Check Brevo dashboard for delivery status
+
+3. **Check Server Logs**
+   - Look for email sending logs
+   - Check which service was used (Resend/Brevo)
 
 ### Token Verification Fails
 
@@ -138,9 +151,15 @@ CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token
 
 ## Next Steps
 
-1. **Run the migration** to create the tokens table
-2. **Test signup flow** with a real email
-3. **Check Resend dashboard** to see if emails are being sent
-4. **Verify sender email** in Resend (or use a verified email)
+1. **Test signup flow** with a real email
+2. **Check Supabase dashboard** → Authentication → Users to see verification status
+3. **Check email inbox** (and spam folder) for verification email
+4. **Test general emails** (notifications) to verify Resend/Brevo fallback works
 
-The system uses Supabase's native email verification with Brevo SMTP. Supabase handles verification automatically, and emails are sent through Brevo configured in the Supabase dashboard.
+## Email Service Architecture
+
+- **Verification Emails**: Supabase native email service (SMTP disabled)
+- **General Emails**: Resend (primary) → Brevo (fallback)
+- **SMTP**: Disabled but code kept for future re-enablement
+
+The system uses Supabase's native email service for verification emails. General emails (notifications, alerts) use Resend/Brevo for better deliverability and customization.

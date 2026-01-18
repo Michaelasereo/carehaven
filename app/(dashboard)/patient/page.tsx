@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { PatientDemographics } from '@/components/dashboard/patient-demographics'
 import { PatientMetricsGrid } from '@/components/patient/patient-metrics-grid'
 import { PatientDashboardClient } from '@/components/patient/dashboard-client'
 
@@ -58,12 +57,8 @@ export default async function PatientDashboardPage() {
   ])
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-      
-      <PatientDemographics
-        name={profile.full_name}
-      />
+    <div className="space-y-4 md:space-y-6 px-4 md:px-6">
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
 
       {/* Statistics Cards with Real-time Updates */}
       <PatientMetricsGrid

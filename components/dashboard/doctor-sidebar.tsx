@@ -31,7 +31,7 @@ export function DoctorSidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gray-50 border-r">
+    <div className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-gray-50 border-r">
       <div className="flex h-16 items-center px-6 border-b">
         <div className="flex items-center">
           <Image
@@ -49,7 +49,10 @@ export function DoctorSidebar() {
       <nav className="flex-1 space-y-1 px-4 py-4">
         {doctorNavItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+          // Only match exact path or paths that are children (but not parent matches)
+          const isActive = item.href === '/doctor/dashboard'
+            ? pathname === item.href
+            : pathname === item.href || pathname?.startsWith(item.href + '/')
           
           return (
             <Link

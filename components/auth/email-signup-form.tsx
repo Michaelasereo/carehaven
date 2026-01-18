@@ -73,7 +73,9 @@ export function EmailSignUpForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // Don't set emailRedirectTo to prevent Supabase from sending confirmation email
+        // We handle verification via codes instead
+        emailRedirectTo: undefined,
         data: {
           // Add any additional metadata if needed
         },
@@ -82,21 +84,57 @@ export function EmailSignUpForm() {
 
     if (signUpError) {
       console.error('Sign up error:', signUpError)
-      if (signUpError.message.includes('already registered')) {
-        setError('An account with this email already exists. Please sign in instead.')
+      console.error('   Error code:', signUpError.status)
+      console.error('   Error message:', signUpError.message)
+      
+      // Ignore email sending errors since we handle verification via codes
+      if (signUpError.message.includes('Error sending confirmation email') || 
+          signUpError.message.includes('email confirmation') ||
+          signUpError.message.includes('Failed to send email')) {
+        console.warn('Supabase email confirmation error ignored - using verification codes instead')
+        // Continue with signup flow even if Supabase email fails
+      } else if (signUpError.message.includes('already registered') || 
+                 signUpError.message.includes('User already registered') ||
+                 signUpError.status === 422) {
+        setError('An account with this email already exists. Please sign in instead, or try again in a moment if you just created it.')
+        setLoading(false)
+        return
       } else {
-        setError(signUpError.message)
+        setError(signUpError.message || 'An error occurred during sign up. Please try again.')
+        setLoading(false)
+        return
       }
-      setLoading(false)
-      return
     }
 
     if (data.user) {
       console.log('User created:', data.user.id)
       console.log('Email confirmed:', data.user.email_confirmed_at)
       
-      // Supabase automatically sends verification email via Brevo SMTP (configured in Supabase dashboard)
-      console.log('✅ Account created. Supabase will send verification email via Brevo SMTP')
+      // Send verification code via Brevo SMTP
+      try {
+        const response = await fetch('/api/auth/send-verification-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, userId: data.user.id }),
+        })
+
+        const result = await response.json()
+        if (!response.ok) {
+          console.error('❌ Failed to send verification code:', result.error)
+          
+          // Show user-friendly error message
+          if (result.error?.includes('wait')) {
+            console.warn('⚠️  Rate limit reached. User can resend from verify-email page.')
+          }
+          // Don't fail signup if email sending fails - user can resend from verify-email page
+        } else {
+          console.log('✅ Verification code sent via Brevo')
+        }
+      } catch (emailError: any) {
+        console.error('❌ Error calling send-verification-code API:', emailError)
+        console.error('   Message:', emailError.message)
+        // Don't fail signup if email sending fails - user can resend from verify-email page
+      }
       
       setSuccess(true)
       // Redirect to email verification page with email parameter
@@ -113,7 +151,7 @@ export function EmailSignUpForm() {
         <div className="rounded-md bg-green-50 p-4 text-sm text-green-800">
           <p className="font-semibold">Account created successfully!</p>
           <p className="mt-2">
-            We've sent a verification email to <strong>{email}</strong>. Please check your inbox and click the verification link to activate your account.
+            We've sent a 6-digit verification code to <strong>{email}</strong>. Please check your inbox and enter the code on the next page to verify your account.
           </p>
         </div>
         <Link href="/auth/signin">

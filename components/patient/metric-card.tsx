@@ -83,17 +83,17 @@ export function MetricCard({
   }, [realtimeTable, realtimeFilter, label, supabase])
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-lg ${bgColor}`}>
-          <Icon className={`h-6 w-6 ${color}`} />
+    <Card className="p-4 md:p-6">
+      <div className="flex items-center gap-3 md:gap-4">
+        <div className={`p-2 md:p-3 rounded-lg ${bgColor} flex-shrink-0`}>
+          <Icon className={`h-5 w-5 md:h-6 md:w-6 ${color}`} />
         </div>
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2">
-          <div className="text-3xl font-bold text-gray-900">{value}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+          <div className="text-2xl md:text-3xl font-bold text-gray-900">{value}</div>
             {trend && <TrendIndicator value={trend.value} period={trend.period} />}
           </div>
-          <div className="text-sm text-gray-600">{label}</div>
+          <div className="text-xs md:text-sm text-gray-600">{label}</div>
         </div>
       </div>
     </Card>

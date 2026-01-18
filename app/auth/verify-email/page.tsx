@@ -3,33 +3,28 @@
 import { useEffect, useState, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { ResendVerificationButton } from '@/components/auth/resend-verification-button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const supabase = createClient()
   const [email, setEmail] = useState<string | null>(null)
+  const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [verified, setVerified] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
 
   useEffect(() => {
-    // Check for verification token in URL
-    const token = searchParams.get('token')
+    // Get email from URL parameter or from session
     const emailParam = searchParams.get('email')
-    const errorParam = searchParams.get('error')
-
-    if (errorParam) {
-      setError('Verification failed. Please try resending the email.')
-    }
-
-    if (token && emailParam) {
-      // Token is handled by the API route, just show success
-      setVerified(true)
-      setEmail(emailParam)
-    } else if (emailParam) {
+    if (emailParam) {
       setEmail(emailParam)
     } else {
       // Try to get from current user session
@@ -40,6 +35,100 @@ function VerifyEmailContent() {
       })
     }
   }, [searchParams, supabase])
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    if (!code || code.length !== 6) {
+      setError('Please enter a valid 6-digit verification code')
+      setLoading(false)
+      return
+    }
+
+    if (!email) {
+      setError('Email is required')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, email }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to verify code')
+        setLoading(false)
+        return
+      }
+
+      // Code verified successfully
+      setVerified(true)
+      
+      // Refresh session to ensure it's updated
+      await supabase.auth.refreshSession()
+      
+      // Redirect to dashboard after a short delay
+      setTimeout(() => {
+        const redirectPath = result.redirectPath || '/patient'
+        router.push(redirectPath)
+      }, 1500)
+    } catch (error: any) {
+      console.error('Error verifying code:', error)
+      setError('Failed to verify code. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    if (!email) {
+      setError('Email is required')
+      return
+    }
+
+    setResending(true)
+    setError(null)
+
+    try {
+      // Get user ID from session
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        setError('User not found. Please sign up again.')
+        setResending(false)
+        return
+      }
+
+      const response = await fetch('/api/auth/send-verification-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, userId: user.id }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to resend verification code')
+        setResending(false)
+        return
+      }
+
+      // Show success message
+      setError(null)
+      alert('Verification code sent! Please check your email.')
+      setResending(false)
+    } catch (error: any) {
+      console.error('Error resending code:', error)
+      setError('Failed to resend verification code. Please try again.')
+      setResending(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -79,31 +168,68 @@ function VerifyEmailContent() {
                   Email verified successfully!
                 </p>
                 <p className="text-gray-600">
-                  Your email address has been verified. You can now sign in to your account.
+                  Redirecting you to your dashboard...
                 </p>
               </>
             ) : (
               <>
                 <p className="text-gray-600">
-                  We've sent a verification email {email ? `to ${email}` : 'to your inbox'}. Please check your email and click the verification link to activate your account.
+                  We've sent a 6-digit verification code {email ? `to ${email}` : 'to your email'}. 
+                  Please enter the code below to verify your account.
                 </p>
-                <p className="text-sm text-gray-500">
-                  Didn't receive the email? Check your spam folder.
-                </p>
-                {error && (
-                  <p className="text-sm text-red-600 mt-2">{error}</p>
-                )}
+                <form onSubmit={handleVerifyCode} className="space-y-4 mt-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="verification-code">Verification Code</Label>
+                    <Input
+                      id="verification-code"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={code}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '') // Only allow digits
+                        setCode(value.slice(0, 6)) // Limit to 6 digits
+                      }}
+                      disabled={loading}
+                      required
+                      className="text-center text-2xl tracking-widest font-mono"
+                      aria-invalid={error ? 'true' : 'false'}
+                    />
+                  </div>
+                  {error && (
+                    <p className="text-sm text-red-600">{error}</p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-teal-600 hover:bg-teal-700"
+                    disabled={loading || code.length !== 6}
+                  >
+                    {loading ? 'Verifying...' : 'Verify Code'}
+                  </Button>
+                </form>
+                <div className="space-y-2 mt-4">
+                  <p className="text-sm text-gray-500">
+                    Didn't receive the code? Check your spam folder.
+                  </p>
+                  <Button
+                    onClick={handleResendCode}
+                    disabled={resending}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {resending ? 'Sending...' : 'Resend Verification Code'}
+                  </Button>
+                </div>
               </>
             )}
           </div>
         </div>
         
         <div className="space-y-3">
-          {email && (
-            <ResendVerificationButton email={email} />
-          )}
           <Link href="/auth/signin">
-            <Button className="w-full bg-teal-600 hover:bg-teal-700">
+            <Button variant="outline" className="w-full">
               Back to Sign In
             </Button>
           </Link>

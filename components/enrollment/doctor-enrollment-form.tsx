@@ -92,18 +92,28 @@ export function DoctorEnrollmentForm() {
             license_type: data.licenseType,
             specialty: data.specialty,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          // Don't set emailRedirectTo to prevent Supabase from sending confirmation email
+          // We handle verification via codes instead
+          emailRedirectTo: undefined,
         },
       })
 
       if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
+        // Ignore email sending errors since we handle verification via codes
+        if (signUpError.message.includes('Error sending confirmation email') || 
+            signUpError.message.includes('email confirmation') ||
+            signUpError.message.includes('Failed to send email')) {
+          console.warn('Supabase email confirmation error ignored - using verification codes instead')
+          // Continue with enrollment flow even if Supabase email fails
+        } else if (signUpError.message.includes('already registered')) {
           setError('An account with this email already exists. Please sign in instead.')
+          setLoading(false)
+          return
         } else {
           setError(signUpError.message)
+          setLoading(false)
+          return
         }
-        setLoading(false)
-        return
       }
 
       if (signUpData.user) {
@@ -123,6 +133,26 @@ export function DoctorEnrollmentForm() {
 
         if (profileError) {
           console.error('Error updating profile:', profileError)
+        }
+
+        // Send verification code via Brevo SMTP
+        try {
+          const response = await fetch('/api/auth/send-verification-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: data.email, userId: signUpData.user.id }),
+          })
+
+          const result = await response.json()
+          if (!response.ok) {
+            console.warn('⚠️  Failed to send verification code:', result.error)
+            // Don't fail enrollment if email sending fails - user can resend from verify-email page
+          } else {
+            console.log('✅ Verification code sent via Brevo')
+          }
+        } catch (emailError) {
+          console.error('Error calling send-verification-code API:', emailError)
+          // Don't fail enrollment if email sending fails - user can resend from verify-email page
         }
 
         // Redirect to email verification

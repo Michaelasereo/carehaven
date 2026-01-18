@@ -37,7 +37,7 @@ export function createClient() {
     },
   })
 
-  // Set up auth state change listener
+  // Set up auth state change listener with error handling
   supabaseClient.auth.onAuthStateChange((event, session) => {
     console.log('Auth state changed:', event, session?.user?.id)
     
@@ -47,7 +47,18 @@ export function createClient() {
     }
     
     if (event === 'SIGNED_OUT') {
+      // Clear invalid tokens and auth data on sign out
       localStorage.removeItem('supabase.auth.token')
+      
+      // Clear any stale auth data from localStorage
+      if (typeof window !== 'undefined') {
+        const keys = Object.keys(localStorage)
+        keys.forEach(key => {
+          if (key.startsWith('sb-') && (key.includes('auth-token') || key.includes('auth'))) {
+            localStorage.removeItem(key)
+          }
+        })
+      }
     }
   })
 
@@ -59,8 +70,19 @@ export async function getValidSession(): Promise<Session | null> {
   const supabase = createClient()
   const { data: { session }, error } = await supabase.auth.getSession()
   
-  if (error || !session) {
+  if (error) {
+    // Handle refresh token errors gracefully
+    if (error.message?.includes('refresh_token_not_found') || error.message?.includes('Invalid Refresh Token')) {
+      console.warn('Invalid refresh token detected, clearing session...')
+      // Sign out to clear invalid session
+      await supabase.auth.signOut()
+      return null
+    }
     console.error('Session check failed:', error)
+    return null
+  }
+  
+  if (!session) {
     return null
   }
   
@@ -71,15 +93,25 @@ export async function getValidSession(): Promise<Session | null> {
   
   if (expiresAt - now < bufferTime) {
     console.log('Session near expiry, attempting refresh...')
-    const { data: { session: refreshedSession }, error: refreshError } = 
-      await supabase.auth.refreshSession()
-    
-    if (refreshError) {
-      console.error('Session refresh failed:', refreshError)
+    try {
+      const { data: { session: refreshedSession }, error: refreshError } = 
+        await supabase.auth.refreshSession()
+      
+      if (refreshError) {
+        // Handle refresh token errors
+        if (refreshError.message?.includes('refresh_token_not_found') || refreshError.message?.includes('Invalid Refresh Token')) {
+          console.warn('Invalid refresh token during refresh, clearing session...')
+          await supabase.auth.signOut()
+        }
+        console.error('Session refresh failed:', refreshError)
+        return null
+      }
+      
+      return refreshedSession
+    } catch (err) {
+      console.error('Unexpected error during session refresh:', err)
       return null
     }
-    
-    return refreshedSession
   }
   
   return session

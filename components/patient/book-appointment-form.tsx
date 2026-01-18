@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -51,6 +52,9 @@ export function BookAppointmentForm() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [consultationPrice, setConsultationPrice] = useState<number>(5000) // Default 50 naira (5000 kobo)
+  const [chronicConditions, setChronicConditions] = useState<string[]>([])
+  const [gender, setGender] = useState<string>('')
+  const [age, setAge] = useState<string>('')
 
   // Fetch doctor availability with real-time sync
   const { data: availability, refetch: refetchAvailability } = useQuery({
@@ -349,6 +353,62 @@ export function BookAppointmentForm() {
                 rows={4}
                 placeholder="Describe your symptoms or reason for consultation..."
               />
+            </div>
+
+            <div>
+              <Label>Chronic Conditions (Optional)</Label>
+              <div className="mt-2 space-y-2 border rounded-lg p-4">
+                {['Hypertension', 'Diabetes', 'Arthritis', 'Peptic Ulcer', 'Asthma', 'Sickle Cell'].map((condition) => (
+                  <div key={condition} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`condition-${condition}`}
+                      checked={chronicConditions.includes(condition)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setChronicConditions([...chronicConditions, condition])
+                        } else {
+                          setChronicConditions(chronicConditions.filter(c => c !== condition))
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor={`condition-${condition}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {condition}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="gender">Gender (Optional)</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger id="gender">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="age">Age (Optional)</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  min="0"
+                  max="150"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="Enter age"
+                />
+              </div>
             </div>
 
             <Button

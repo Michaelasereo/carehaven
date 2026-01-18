@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from '@/lib/email/client'
 import * as crypto from 'crypto'
 
 const supabase = createClient(
@@ -37,55 +36,27 @@ export async function generateVerificationToken(userId: string): Promise<string>
 }
 
 /**
- * Send verification email using Resend
+ * Send verification email using Supabase native email service
+ * Note: SMTP is disabled, using Supabase's built-in email service
  */
 export async function sendVerificationEmail(
   email: string,
   userId: string
 ): Promise<void> {
   try {
-    const token = await generateVerificationToken(userId)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-      (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:3000')
-    const verificationUrl = `${baseUrl}/api/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`
+    // Use Supabase's native email verification via auth.resend()
+    // This uses Supabase's built-in email service (SMTP disabled)
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+    })
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Verify Your Email - Care Haven</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #0d9488; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0;">Care Haven</h1>
-          </div>
-          <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px;">
-            <h2 style="color: #111827; margin-top: 0;">Verify Your Email Address</h2>
-            <p>Thank you for signing up for Care Haven! Please verify your email address by clicking the button below:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" style="background-color: #0d9488; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
-                Verify Email Address
-              </a>
-            </div>
-            <p style="color: #6b7280; font-size: 14px;">Or copy and paste this link into your browser:</p>
-            <p style="color: #6b7280; font-size: 12px; word-break: break-all;">${verificationUrl}</p>
-            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">This link will expire in 24 hours.</p>
-            <p style="color: #6b7280; font-size: 14px;">If you didn't create an account with Care Haven, please ignore this email.</p>
-          </div>
-          <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
-            <p>© ${new Date().getFullYear()} Care Haven. All rights reserved.</p>
-          </div>
-        </body>
-      </html>
-    `
+    if (error) {
+      console.error('Error sending verification email via Supabase:', error)
+      throw error
+    }
 
-    await sendEmail(
-      email,
-      'Verify Your Email Address - Care Haven',
-      htmlContent
-    )
+    console.log(`✅ Verification email sent to ${email} via Supabase native email service`)
   } catch (error) {
     console.error('Error sending verification email:', error)
     throw error

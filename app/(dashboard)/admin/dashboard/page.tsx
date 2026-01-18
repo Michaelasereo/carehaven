@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { AdminMetricsGrid } from '@/components/admin/admin-metrics-grid'
 import { AdminDashboardClient } from '@/components/admin/admin-dashboard-client'
 import { ConsultationPriceManager } from '@/components/admin/consultation-price-manager'
+import { ConsultationDurationManager } from '@/components/admin/consultation-duration-manager'
 import { 
   getTimeRange, 
   calculateTrend, 
@@ -257,8 +258,11 @@ export default async function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Consultation Price Management */}
-      <ConsultationPriceManager />
+      {/* Consultation Settings Management */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ConsultationPriceManager />
+        <ConsultationDurationManager />
+      </div>
 
       {/* Quick Actions with Recent Activity */}
       <AdminDashboardClient 

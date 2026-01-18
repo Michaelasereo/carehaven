@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 export interface SystemSettings {
   id: string
   consultation_price: number
+  consultation_duration: number
   currency: string
   updated_by?: string
   updated_at: string
@@ -46,6 +47,71 @@ export async function getSystemSettings(): Promise<SystemSettings | null> {
   }
 
   return data as SystemSettings
+}
+
+/**
+ * Get the current global consultation duration
+ * @returns The consultation duration in minutes (default: 45)
+ */
+export async function getConsultationDuration(): Promise<number> {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('system_settings')
+    .select('consultation_duration')
+    .single()
+
+  if (error || !data) {
+    console.error('Error fetching consultation duration:', error)
+    // Return default duration of 45 minutes if error
+    return 45
+  }
+
+  return Number(data.consultation_duration) || 45
+}
+
+/**
+ * Update the global consultation duration (admin only)
+ * @param duration The new consultation duration in minutes
+ * @param adminId The ID of the admin making the update
+ */
+export async function updateConsultationDuration(
+  duration: number,
+  adminId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+
+  // Validate duration
+  if (duration < 1) {
+    return { success: false, error: 'Duration must be at least 1 minute' }
+  }
+
+  // Get settings id first
+  const { data: settings } = await supabase
+    .from('system_settings')
+    .select('id')
+    .single()
+
+  if (!settings) {
+    return { success: false, error: 'System settings not found' }
+  }
+
+  // Update duration
+  const { error } = await supabase
+    .from('system_settings')
+    .update({
+      consultation_duration: duration,
+      updated_by: adminId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', settings.id)
+
+  if (error) {
+    console.error('Error updating consultation duration:', error)
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
 }
 
 /**

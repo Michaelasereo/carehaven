@@ -17,6 +17,7 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
   const [isLoading, setIsLoading] = useState(false)
   const [canJoin, setCanJoin] = useState(false)
   const [scheduledAt, setScheduledAt] = useState<string | null>(null)
+  const [appointmentStatus, setAppointmentStatus] = useState<string | null>(null)
 
   // Check if within join window (15 minutes before appointment)
   useEffect(() => {
@@ -32,21 +33,47 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
     return () => clearInterval(interval)
   }, [scheduledAt])
 
-  // Fetch appointment scheduled time
+  // Fetch appointment scheduled time and status
   useEffect(() => {
     const fetchAppointment = async () => {
       const { data } = await supabase
         .from('appointments')
-        .select('scheduled_at')
+        .select('scheduled_at, status')
         .eq('id', appointmentId)
         .single()
 
       if (data?.scheduled_at) {
         setScheduledAt(data.scheduled_at)
       }
+      if (data?.status) {
+        setAppointmentStatus(data.status)
+      }
     }
 
     fetchAppointment()
+
+    // Subscribe to real-time appointment status changes
+    const channel = supabase
+      .channel(`appointment-${appointmentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'appointments',
+          filter: `id=eq.${appointmentId}`,
+        },
+        (payload) => {
+          if (payload.new.status) {
+            setAppointmentStatus(payload.new.status as string)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [appointmentId, supabase])
 
   const handleJoin = async () => {
@@ -122,8 +149,11 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
     }
   }
 
-  // Show button only if within join window or appointment is in progress
-  const showButton = canJoin || !scheduledAt // Show if can join or if we don't have scheduled time yet
+  // Show button if within join window, appointment is confirmed/in_progress, or no scheduled time yet
+  const showButton = canJoin || appointmentStatus === 'confirmed' || appointmentStatus === 'in_progress' || !scheduledAt
+
+  // Allow joining if status is in_progress or within join window
+  const allowJoin = appointmentStatus === 'in_progress' || canJoin || appointmentStatus === 'confirmed'
 
   if (!showButton && scheduledAt) {
     return null
@@ -133,10 +163,10 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
     <Button
       onClick={handleJoin}
       className="bg-teal-600 hover:bg-teal-700"
-      disabled={isLoading || (!canJoin && !!scheduledAt)}
+      disabled={isLoading || (!allowJoin && !!scheduledAt)}
     >
       <Video className="h-4 w-4 mr-2" />
-      {isLoading ? 'Joining...' : 'Join Consultation'}
+      {isLoading ? 'Joining...' : appointmentStatus === 'in_progress' ? 'Rejoin Consultation' : 'Join Consultation'}
     </Button>
   )
 }

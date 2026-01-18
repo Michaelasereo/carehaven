@@ -53,21 +53,39 @@ export default function ConsultationPage({ params }: { params: { id: string } })
   }, [])
 
   const handleLeave = async () => {
-    // Update appointment status to completed if it was in_progress
-    const { data: appointment } = await supabase
-      .from('appointments')
-      .select('status')
-      .eq('id', params.id)
-      .single()
+    // Get user role to determine redirect
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    if (appointment?.status === 'in_progress') {
-      await supabase
+      // Update appointment status to completed if it was in_progress
+      const { data: appointment } = await supabase
         .from('appointments')
-        .update({ status: 'completed' })
+        .select('status')
         .eq('id', params.id)
-    }
+        .single()
 
-    router.push('/patient/appointments')
+      if (appointment?.status === 'in_progress') {
+        await supabase
+          .from('appointments')
+          .update({ status: 'completed' })
+          .eq('id', params.id)
+      }
+
+      // Redirect based on role
+      if (profile?.role === 'doctor') {
+        router.push(`/doctor/appointments/${params.id}`)
+      } else {
+        router.push('/patient/appointments')
+      }
+    } else {
+      router.push('/auth/signin')
+    }
   }
 
   if (isLoading) {

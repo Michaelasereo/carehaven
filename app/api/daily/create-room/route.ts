@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createRoom } from '@/lib/daily/client'
+import { getConsultationDuration } from '@/lib/admin/system-settings'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -13,7 +14,9 @@ export async function POST(request: Request) {
 
     const { appointmentId } = await request.json()
 
-    const room = await createRoom(appointmentId)
+    // Get consultation duration for room expiry
+    const durationMinutes = await getConsultationDuration()
+    const room = await createRoom(appointmentId, durationMinutes)
 
     // Update appointment with room details
     await supabase

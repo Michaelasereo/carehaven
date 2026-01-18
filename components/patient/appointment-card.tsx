@@ -19,7 +19,7 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
   const [showReschedule, setShowReschedule] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
   const startTime = new Date(appointment.scheduled_at)
-  const endTime = new Date(startTime.getTime() + (appointment.duration_minutes || 30) * 60000)
+  const endTime = new Date(startTime.getTime() + (appointment.duration_minutes || 45) * 60000)
   
   const doctorName = appointment.profiles?.full_name || 'Dr. Unknown'
   const canReschedule = ['scheduled', 'confirmed'].includes(appointment.status) && 

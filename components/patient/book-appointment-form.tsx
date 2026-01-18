@@ -19,11 +19,13 @@ import {
 import { useCreateAppointment } from '@/lib/react-query/mutations'
 import { useRouter } from 'next/navigation'
 import { DoctorList } from './doctor-list'
+import { OrderSummaryCard } from './order-summary-card'
 import { formatCurrency } from '@/lib/utils'
 import { ArrowLeft, Calendar, Clock, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isTimeAvailable, getAvailableTimeSlots, type AvailabilitySlot } from '@/lib/utils/availability'
 import { useQuery } from '@tanstack/react-query'
+import { getConsultationDurationClient } from '@/lib/admin/system-settings-client'
 
 const appointmentSchema = z.object({
   chief_complaint: z.string().min(5, 'Reason must be at least 5 characters'),
@@ -52,9 +54,42 @@ export function BookAppointmentForm() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [consultationPrice, setConsultationPrice] = useState<number>(5000) // Default 50 naira (5000 kobo)
+  const [consultationDuration, setConsultationDuration] = useState<number>(45) // Default 45 minutes
   const [chronicConditions, setChronicConditions] = useState<string[]>([])
   const [gender, setGender] = useState<string>('')
   const [age, setAge] = useState<string>('')
+  const BUFFER_MINUTES = 15 // Buffer time between appointments
+
+  // Fetch consultation duration with real-time sync
+  useEffect(() => {
+    const fetchDuration = async () => {
+      const duration = await getConsultationDurationClient()
+      setConsultationDuration(duration)
+    }
+
+    fetchDuration()
+
+    // Subscribe to real-time duration changes
+    const channel = supabase
+      .channel('system-settings-duration-booking')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'system_settings',
+        },
+        async () => {
+          const newDuration = await getConsultationDurationClient()
+          setConsultationDuration(newDuration)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase])
 
   // Fetch doctor availability with real-time sync
   const { data: availability, refetch: refetchAvailability } = useQuery({
@@ -136,8 +171,9 @@ export function BookAppointmentForm() {
     ? getAvailableTimeSlots(
         new Date(selectedDate),
         availability,
-        30,
-        existingAppointments || []
+        consultationDuration,
+        existingAppointments || [],
+        BUFFER_MINUTES
       )
     : []
 
@@ -204,7 +240,15 @@ export function BookAppointmentForm() {
       })
   }
 
-  // Step 3: Checkout & Payment
+  // Step 3: Date/Time Selection - Move to Step 4
+  const handleStep3Next = () => {
+    if (!selectedDate || !selectedTime || availableTimeSlots.length === 0 || availabilityError) {
+      return
+    }
+    setStep(4)
+  }
+
+  // Step 4: Review & Payment
   const onSubmit = async (data: AppointmentFormData) => {
     if (!selectedDoctor || !selectedDate || !selectedTime) {
       return
@@ -249,14 +293,18 @@ export function BookAppointmentForm() {
       // Combine date and time
       const scheduledAt = new Date(`${selectedDate}T${selectedTime}`).toISOString()
 
-      // Create appointment
+      // Use selected doctor's fee or default consultation price
+      const appointmentAmount = selectedDoctor?.fee || consultationPrice
+
+      // Create appointment with configured duration
       const appointment = await createAppointment.mutateAsync({
         patient_id: user.id,
         doctor_id: data.doctor_id,
         chief_complaint: data.chief_complaint,
         symptoms_description: data.symptoms_description,
         scheduled_at: scheduledAt,
-        amount: consultationPrice,
+        duration_minutes: consultationDuration,
+        amount: appointmentAmount,
         currency: 'NGN',
         status: 'scheduled',
         payment_status: 'pending',
@@ -267,7 +315,7 @@ export function BookAppointmentForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: consultationPrice,
+          amount: appointmentAmount,
           appointmentId: appointment.id,
         }),
       })
@@ -313,7 +361,15 @@ export function BookAppointmentForm() {
           className={step >= 3 ? 'bg-teal-600' : ''}
           disabled
         >
-          Step 3: Checkout
+          Step 3: Date & Time
+        </Button>
+        <Button
+          variant={step >= 4 ? 'default' : 'outline'}
+          size="sm"
+          className={step >= 4 ? 'bg-teal-600' : ''}
+          disabled
+        >
+          Step 4: Review & Pay
         </Button>
       </div>
 
@@ -432,40 +488,18 @@ export function BookAppointmentForm() {
           </div>
         )}
 
-        {/* Step 3: Checkout */}
+        {/* Step 3: Date & Time Selection */}
         {step === 3 && selectedDoctor && (
           <div className="space-y-6">
-            <div className="border rounded-lg p-6 bg-gray-50">
-              <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
-              
-              <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Select Date & Time</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Choose a convenient date and time for your consultation with {selectedDoctor.name}
+              </p>
+            </div>
+
+            <div className="border rounded-lg p-6 bg-gray-50 space-y-6">
                 <div>
-                  <p className="font-medium">Consultation with {selectedDoctor.name}</p>
-                  {selectedDoctor.specialty && (
-                    <p className="text-sm text-gray-600">{selectedDoctor.specialty}</p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  <span>Date: {selectedDate || 'Not selected'}</span>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="h-4 w-4" />
-                  <span>
-                    Time: {selectedTime
-                      ? (() => {
-                          const [hours, minutes] = selectedTime.split(':').map(Number)
-                          const hour12 = hours % 12 || 12
-                          const ampm = hours >= 12 ? 'PM' : 'AM'
-                          return `${hour12}:${minutes.toString().padStart(2, '0')} ${ampm}`
-                        })()
-                      : 'Not selected'}
-                  </span>
-                </div>
-
-                <div className="pt-4 border-t">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="appointment_date">Select Date *</Label>
                     <Input
@@ -567,13 +601,40 @@ export function BookAppointmentForm() {
                   )}
                 </div>
 
-                <div className="pt-4 border-t flex items-center justify-between">
-                  <span className="text-lg font-semibold">Subtotal:</span>
-                  <span className="text-2xl font-bold text-teal-600">
-                    {formatCurrency(consultationPrice, 'NGN')}
-                  </span>
-                </div>
               </div>
+
+              <Button
+                type="button"
+                onClick={handleStep3Next}
+                className="w-full bg-teal-600 hover:bg-teal-700 mt-6"
+                disabled={
+                  !selectedDate ||
+                  !selectedTime ||
+                  availableTimeSlots.length === 0 ||
+                  !!availabilityError
+                }
+              >
+                Next
+              </Button>
+              {availabilityError && (
+                <p className="text-sm text-red-600 text-center mt-2">{availabilityError}</p>
+              )}
+            </div>
+        )}
+
+        {/* Step 4: Review & Payment */}
+        {step === 4 && selectedDoctor && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Review Your Appointment</h3>
+              <OrderSummaryCard
+                doctorName={selectedDoctor.name}
+                specialty={selectedDoctor.specialty}
+                date={selectedDate}
+                time={selectedTime}
+                consultationFee={selectedDoctor.fee ? Number(selectedDoctor.fee) : consultationPrice}
+                currency="NGN"
+              />
             </div>
 
             <Button
@@ -587,7 +648,7 @@ export function BookAppointmentForm() {
                 !!availabilityError
               }
             >
-              {isProcessingPayment ? 'Processing...' : 'Proceed to Checkout'}
+              {isProcessingPayment ? 'Processing Payment...' : 'Proceed to Payment'}
             </Button>
             {availabilityError && (
               <p className="text-sm text-red-600 text-center">{availabilityError}</p>

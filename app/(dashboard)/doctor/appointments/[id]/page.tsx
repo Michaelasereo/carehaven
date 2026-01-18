@@ -72,7 +72,7 @@ export default async function AppointmentDetailsPage({
 
   const patient = appointment.profiles
   const scheduledAt = new Date(appointment.scheduled_at)
-  const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 30) * 60000)
+  const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000)
   const canJoin = appointment.status === 'confirmed' || appointment.status === 'in_progress'
   const isCompleted = appointment.status === 'completed'
 

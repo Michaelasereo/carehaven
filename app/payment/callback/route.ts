@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyPayment } from '@/lib/paystack/client'
 import { createRoom } from '@/lib/daily/client'
+import { getConsultationDuration } from '@/lib/admin/system-settings'
 import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail } from '@/lib/notifications/triggers'
 
 /**
@@ -71,7 +72,9 @@ export async function GET(request: Request) {
 
     // Auto-create video room for confirmed appointment
     try {
-      const room = await createRoom(appointment.id)
+      // Get consultation duration for room expiry
+      const durationMinutes = await getConsultationDuration()
+      const room = await createRoom(appointment.id, durationMinutes)
       
       await supabase
         .from('appointments')

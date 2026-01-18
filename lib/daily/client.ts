@@ -4,8 +4,14 @@ import DailyApi from '@daily-co/daily-js'
 const API_KEY = process.env.DAILY_CO_API_KEY || ''
 const DAILY_API_BASE = 'https://api.daily.co/v1'
 
-export async function createRoom(appointmentId: string) {
+export async function createRoom(appointmentId: string, durationMinutes?: number) {
   try {
+    // Calculate expiry: duration * 120 seconds (duration * 2 minutes) for safety
+    // Or use default 2 hours (7200 seconds) if duration not provided
+    const expirySeconds = durationMinutes 
+      ? Math.floor(Date.now() / 1000) + (durationMinutes * 120) 
+      : Math.floor(Date.now() / 1000) + 7200 // Default 2 hours
+
     const response = await fetch(`${DAILY_API_BASE}/rooms`, {
       method: 'POST',
       headers: {
@@ -20,7 +26,7 @@ export async function createRoom(appointmentId: string) {
           enable_chat: true,
           enable_screenshare: true,
           hipaa_compliant: true,
-          exp: Math.floor(Date.now() / 1000) + 7200, // 2 hours
+          exp: expirySeconds,
         },
       }),
     })

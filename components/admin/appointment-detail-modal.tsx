@@ -83,7 +83,7 @@ export function AppointmentDetailModal({
   if (!appointment) return null
 
   const scheduledAt = new Date(appointment.scheduled_at)
-  const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 30) * 60000)
+  const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

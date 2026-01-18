@@ -65,8 +65,9 @@ export function isTimeAvailable(
 export function getAvailableTimeSlots(
   selectedDate: Date,
   availabilitySlots: AvailabilitySlot[],
-  durationMinutes: number = 30,
-  existingAppointments: Array<{ scheduled_at: string; duration_minutes: number }> = []
+  durationMinutes: number = 45,
+  existingAppointments: Array<{ scheduled_at: string; duration_minutes: number }> = [],
+  bufferMinutes: number = 15
 ): string[] {
   const dayOfWeek = getDayOfWeek(selectedDate)
   
@@ -103,16 +104,19 @@ export function getAvailableTimeSlots(
       const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
       
       // Check if this slot conflicts with existing appointments
+      // Total blocking time = duration + buffer (e.g., 45 min + 15 min = 60 min total)
       const slotDateTime = new Date(selectedDate)
       slotDateTime.setHours(hours, minutes, 0, 0)
+      const slotEndWithBuffer = new Date(slotDateTime.getTime() + (durationMinutes + bufferMinutes) * 60000)
       
       const hasConflict = existingAppointments.some(apt => {
         const aptDate = new Date(apt.scheduled_at)
-        const aptEnd = new Date(aptDate.getTime() + (apt.duration_minutes || 30) * 60000)
-        const slotEnd = new Date(slotDateTime.getTime() + durationMinutes * 60000)
+        // Existing appointment also blocks duration + buffer
+        const aptDuration = apt.duration_minutes || 45
+        const aptEndWithBuffer = new Date(aptDate.getTime() + (aptDuration + bufferMinutes) * 60000)
         
-        // Check for overlap
-        return (slotDateTime < aptEnd && slotEnd > aptDate)
+        // Check for overlap: new slot overlaps if it starts before existing ends, or ends after existing starts
+        return (slotDateTime < aptEndWithBuffer && slotEndWithBuffer > aptDate)
       })
 
       if (!hasConflict) {

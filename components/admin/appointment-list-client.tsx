@@ -117,7 +117,7 @@ export function AppointmentListClient({
               {appointments.map((appointment) => {
                 const scheduledAt = new Date(appointment.scheduled_at)
                 const endTime = new Date(
-                  scheduledAt.getTime() + (appointment.duration_minutes || 30) * 60000
+                  scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000
                 )
 
                 return (

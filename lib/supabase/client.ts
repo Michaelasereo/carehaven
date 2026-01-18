@@ -38,29 +38,34 @@ export function createClient() {
   })
 
   // Set up auth state change listener with error handling
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    console.log('Auth state changed:', event, session?.user?.id)
-    
-    if (event === 'SIGNED_IN' && session) {
-      // Store session data for debugging
-      localStorage.setItem('supabase.auth.token', session.access_token)
-    }
-    
-    if (event === 'SIGNED_OUT') {
-      // Clear invalid tokens and auth data on sign out
-      localStorage.removeItem('supabase.auth.token')
+  // Only set up listener on client-side to prevent SSR errors
+  if (typeof window !== 'undefined') {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id)
       
-      // Clear any stale auth data from localStorage
-      if (typeof window !== 'undefined') {
-        const keys = Object.keys(localStorage)
-        keys.forEach(key => {
-          if (key.startsWith('sb-') && (key.includes('auth-token') || key.includes('auth'))) {
-            localStorage.removeItem(key)
-          }
-        })
+      if (event === 'SIGNED_IN' && session) {
+        // Store session data for debugging
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('supabase.auth.token', session.access_token)
+        }
       }
-    }
-  })
+      
+      if (event === 'SIGNED_OUT') {
+        // Clear invalid tokens and auth data on sign out
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('supabase.auth.token')
+          
+          // Clear any stale auth data from localStorage
+          const keys = Object.keys(window.localStorage)
+          keys.forEach(key => {
+            if (key.startsWith('sb-') && (key.includes('auth-token') || key.includes('auth'))) {
+              window.localStorage.removeItem(key)
+            }
+          })
+        }
+      }
+    })
+  }
 
   return supabaseClient
 }

@@ -98,6 +98,8 @@ export async function POST(request: Request) {
 
       if (linkError || !linkData?.properties?.action_link) {
         console.error('❌ Error generating magic link:', linkError)
+        console.error('   Callback URL:', callbackUrl)
+        console.error('   User ID:', userId)
         // If magic link generation fails, return redirect path and let client handle sign-in
         return NextResponse.json({
           success: true,
@@ -106,6 +108,10 @@ export async function POST(request: Request) {
           requiresSignIn: true, // Flag to indicate user needs to sign in
         })
       }
+
+      console.log('✅ Magic link generated successfully')
+      console.log('   Callback URL:', callbackUrl)
+      console.log('   Redirect path:', redirectPath)
 
       // Return the magic link URL that will create a session when visited
       return NextResponse.json({

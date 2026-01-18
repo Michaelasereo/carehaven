@@ -2,17 +2,40 @@
   command = "npm run build"
   # Next.js plugin handles publish directory automatically
   functions = "netlify/functions"
+  # Increase build timeout for large Next.js builds (default is 15 minutes)
+  # Netlify Pro/Team plans support up to 60 minutes
+  publish = ".next"
+  # Timeout in seconds (600 = 10 minutes)
+  # This helps prevent timeouts during extension fetch
+  timeout = 600
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+  # Plugin configuration to handle extension fetch failures
+  # If extension fetch fails, plugin will continue with default behavior
 
 # Next.js configuration
 [build.environment]
   NODE_VERSION = "20"
   NEXT_TELEMETRY_DISABLED = "1"
+  # Control plugin behavior (set to "false" to disable plugins if needed)
+  # NETLIFY_USE_PLUGINS = "true"
+  # Required environment variables (set in Netlify dashboard):
+  # NEXT_PUBLIC_SUPABASE_URL - Your Supabase project URL
+  # NEXT_PUBLIC_SUPABASE_ANON_KEY - Your Supabase anonymous key
+  # SUPABASE_SERVICE_ROLE_KEY - Your Supabase service role key (server-side only)
+  # BREVO_API_KEY - Brevo API key for email sending (optional)
+  # RESEND_API_KEY - Resend API key for email sending (optional fallback)
 
 [context.production.environment]
   NODE_ENV = "production"
+
+# Build settings for different contexts
+[context.branch-deploy.environment]
+  NODE_ENV = "development"
+
+[context.deploy-preview.environment]
+  NODE_ENV = "development"
 
 # Next.js handles routing, so we don't need catch-all redirects
 # Static files from /public are served automatically by Next.js

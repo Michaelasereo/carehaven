@@ -111,26 +111,33 @@ export function AdminSignInForm() {
       // Sign out the temporary session since we'll create a new one after verification
       await supabase.auth.signOut()
 
-      // Send verification code
-      const codeResponse = await fetch('/api/auth/send-verification-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          userId: data.user.id,
-        }),
-      })
+      // Send verification code via Brevo SMTP
+      try {
+        const response = await fetch('/api/auth/send-verification-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, userId: data.user.id }),
+        })
 
-      if (!codeResponse.ok) {
-        const errorData = await codeResponse.json()
-        setError(errorData.error || 'Failed to send verification code')
-        setLoading(false)
-        return
+        const result = await response.json()
+        if (!response.ok) {
+          console.error('❌ Failed to send verification code:', result.error)
+          
+          // Show user-friendly error message
+          if (result.error?.includes('wait')) {
+            console.warn('⚠️  Rate limit reached. User can resend from verify-email page.')
+          }
+          // Don't fail login if email sending fails - user can resend from verify-email page
+        } else {
+          console.log('✅ Verification code sent via Brevo')
+        }
+      } catch (emailError: any) {
+        console.error('❌ Error calling send-verification-code API:', emailError)
+        console.error('   Message:', emailError.message)
+        // Don't fail login if email sending fails - user can resend from verify-email page
       }
 
-      // Redirect to verification page with admin flag
+      // Redirect to verification page with admin flag (always redirect, even if email failed)
       router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}&admin=true`)
       return
 

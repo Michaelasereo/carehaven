@@ -31,8 +31,24 @@ export function FAQManager() {
   const [newFAQ, setNewFAQ] = useState({ question: '', answer: '' })
   const [displayCount, setDisplayCount] = useState<number>(4)
   const [displayCountInput, setDisplayCountInput] = useState<string>('4')
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
+    // Fetch user role
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        setUserRole(profile?.role || null)
+      }
+    }
+
+    fetchUserRole()
+
     // Fetch FAQs
     const fetchFAQs = async () => {
       try {
@@ -284,13 +300,15 @@ export function FAQManager() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">FAQ Management</h3>
-          <Button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-teal-600 hover:bg-teal-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add FAQ
-          </Button>
+          {userRole === 'super_admin' && (
+            <Button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="bg-teal-600 hover:bg-teal-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add FAQ
+            </Button>
+          )}
         </div>
 
         {/* Display Count Setting */}
@@ -307,22 +325,25 @@ export function FAQManager() {
                 setError(null)
               }}
               className="w-24"
+              disabled={userRole !== 'super_admin'}
             />
-            <Button
-              onClick={handleUpdateDisplayCount}
-              disabled={isSaving || parseInt(displayCountInput, 10) === displayCount}
-              size="sm"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update'}
-            </Button>
+            {userRole === 'super_admin' && (
+              <Button
+                onClick={handleUpdateDisplayCount}
+                disabled={isSaving || parseInt(displayCountInput, 10) === displayCount}
+                size="sm"
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update'}
+              </Button>
+            )}
           </div>
           <p className="text-xs text-gray-500">
             Currently showing {displayCount} FAQs on the homepage
           </p>
         </div>
 
-        {/* Add FAQ Form */}
-        {showAddForm && (
+        {/* Add FAQ Form - Only visible to super_admin */}
+        {userRole === 'super_admin' && showAddForm && (
           <div className="border rounded-lg p-4 space-y-4 bg-gray-50">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold">Add New FAQ</h4>
@@ -403,39 +424,41 @@ export function FAQManager() {
                         <h4 className="font-semibold mb-1">{faq.question}</h4>
                         <p className="text-sm text-gray-600">{faq.answer}</p>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMoveUp(index)}
-                          disabled={index === 0}
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMoveDown(index)}
-                          disabled={index === sortedFAQs.length - 1}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingId(faq.id)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteFAQ(faq.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {userRole === 'super_admin' && (
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMoveUp(index)}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMoveDown(index)}
+                            disabled={index === sortedFAQs.length - 1}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingId(faq.id)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteFAQ(faq.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

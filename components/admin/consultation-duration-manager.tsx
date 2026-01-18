@@ -16,8 +16,24 @@ export function ConsultationDurationManager() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
+    // Fetch user role
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        setUserRole(profile?.role || null)
+      }
+    }
+
+    fetchUserRole()
+
     // Fetch initial duration
     const fetchDuration = async () => {
       try {
@@ -141,22 +157,25 @@ export function ConsultationDurationManager() {
                   setError(null)
                 }}
                 placeholder="45"
+                disabled={userRole !== 'super_admin'}
               />
             </div>
-            <Button 
-              onClick={handleSave} 
-              disabled={isSaving}
-              className="bg-teal-600 hover:bg-teal-700"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
+            {userRole === 'super_admin' && (
+              <Button 
+                onClick={handleSave} 
+                disabled={isSaving}
+                className="bg-teal-600 hover:bg-teal-700"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </Button>
+            )}
           </div>
           
           {error && (

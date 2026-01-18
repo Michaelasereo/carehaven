@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { UserCheck } from 'lucide-react'
 import {
@@ -21,8 +21,26 @@ interface VerifyDoctorButtonProps {
 export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
   const [showDialog, setShowDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
+
+  useEffect(() => {
+    // Fetch user role
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        setUserRole(profile?.role || null)
+      }
+    }
+
+    fetchUserRole()
+  }, [supabase])
 
   const handleVerify = async () => {
     setIsLoading(true)
@@ -71,6 +89,11 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Don't render button if user is not super_admin
+  if (userRole !== 'super_admin') {
+    return null
   }
 
   return (

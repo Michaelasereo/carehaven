@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,25 @@ export function DoctorListTable({
   selectedIds = [],
 }: DoctorListTableProps) {
   const [localSelected, setLocalSelected] = useState<string[]>(selectedIds)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    // Fetch user role
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        setUserRole(profile?.role || null)
+      }
+    }
+
+    fetchUserRole()
+  }, [supabase])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -221,7 +241,7 @@ export function DoctorListTable({
                           View Details
                         </Link>
                       </DropdownMenuItem>
-                      {!doctor.license_verified && (
+                      {userRole === 'super_admin' && !doctor.license_verified && (
                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                           <VerifyDoctorButton doctorId={doctor.id} />
                         </DropdownMenuItem>

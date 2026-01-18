@@ -76,12 +76,21 @@ function VerifyEmailContent() {
       // If magic link is provided, use it to create session
       if (result.magicLink) {
         // Redirect to magic link which will create session and redirect to dashboard
+        console.log('🔗 Redirecting to magic link for session creation')
         window.location.href = result.magicLink
         return
       }
 
-      // If requiresSignIn flag is set, redirect to sign-in page
+      // If requiresSignIn flag is set, the magic link generation failed
+      // But since verification is successful, redirect to dashboard
+      // The user will need to sign in manually, but we preserve the verified state
       if (result.requiresSignIn) {
+        console.warn('⚠️ Magic link generation failed, redirecting to login with verified flag')
+        const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
+        // Store redirect path in sessionStorage so login can redirect after sign-in
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('postVerifyRedirect', redirectPath)
+        }
         if (isAdmin) {
           router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
         } else {

@@ -16,6 +16,7 @@ export function ConsultationPriceManager() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   // Format: Convert kobo to naira for display (5000 kobo = 50 naira)
   const formatPriceForDisplay = (priceInKobo: number) => {
@@ -28,6 +29,21 @@ export function ConsultationPriceManager() {
   }
 
   useEffect(() => {
+    // Fetch user role
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        setUserRole(profile?.role || null)
+      }
+    }
+
+    fetchUserRole()
+
     // Fetch initial price
     const fetchPrice = async () => {
       try {
@@ -152,22 +168,25 @@ export function ConsultationPriceManager() {
                 }}
                 className="pl-8"
                 placeholder="50.00"
+                disabled={userRole !== 'super_admin'}
               />
             </div>
-            <Button 
-              onClick={handleSave} 
-              disabled={isSaving}
-              className="bg-teal-600 hover:bg-teal-700"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
+            {userRole === 'super_admin' && (
+              <Button 
+                onClick={handleSave} 
+                disabled={isSaving}
+                className="bg-teal-600 hover:bg-teal-700"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </Button>
+            )}
           </div>
           
           {error && (

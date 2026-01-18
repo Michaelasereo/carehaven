@@ -32,6 +32,26 @@ export function AppointmentDetailModal({
   const [loading, setLoading] = useState(false)
   const [soapNotes, setSoapNotes] = useState<any>(null)
   const [prescription, setPrescription] = useState<any>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    // Fetch user role
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        setUserRole(profile?.role || null)
+      }
+    }
+
+    fetchUserRole()
+  }, [isOpen, supabase])
 
   useEffect(() => {
     if (!appointmentId || !isOpen) return
@@ -53,16 +73,20 @@ export function AppointmentDetailModal({
         if (error) throw error
         setAppointment(apt)
 
-        // Fetch SOAP notes if appointment is completed
-        if (apt?.status === 'completed') {
+        // Fetch SOAP notes only if user is super_admin and appointment is completed
+        if (userRole === 'super_admin' && apt?.status === 'completed') {
           const { data: notes } = await supabase
             .from('consultation_notes')
             .select('*')
             .eq('appointment_id', appointmentId)
             .maybeSingle()
           setSoapNotes(notes)
+        } else {
+          setSoapNotes(null)
+        }
 
-          // Fetch prescription
+        // Fetch prescription if appointment is completed
+        if (apt?.status === 'completed') {
           const { data: presc } = await supabase
             .from('prescriptions')
             .select('*')
@@ -78,7 +102,7 @@ export function AppointmentDetailModal({
     }
 
     fetchAppointmentDetails()
-  }, [appointmentId, isOpen, supabase])
+  }, [appointmentId, isOpen, userRole, supabase])
 
   if (!appointment) return null
 
@@ -153,8 +177,8 @@ export function AppointmentDetailModal({
               )}
             </Card>
 
-            {/* SOAP Notes */}
-            {soapNotes && (
+            {/* SOAP Notes - Only visible to super_admin */}
+            {userRole === 'super_admin' && soapNotes && (
               <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Consultation Notes (SOAP)</h3>
                 <div className="space-y-4">

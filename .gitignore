@@ -48,3 +48,10 @@ set-netlify-env.sh
 set-env-via-api.sh
 setup-netlify-env.sh
 netlify-env-commands.txt
+
+# Large files and archives
+*.tar.gz
+*.zip
+
+# Debug logs
+.cursor/debug.log

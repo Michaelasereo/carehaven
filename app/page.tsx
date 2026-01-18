@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Footer } from '@/components/layout/Footer'
@@ -57,14 +56,10 @@ export default function Home() {
       <header className="border-b">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6 relative">
           <div className="flex items-center">
-        <Image
+        <img
           src="/carehaven-logo.svg"
           alt="Care Haven Logo"
-          width={120}
-          height={32}
           className="h-6 md:h-8 w-auto"
-          priority
-          unoptimized
         />
           </div>
           <nav className="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center gap-4">
@@ -124,13 +119,10 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto mb-8 md:mb-12">
               <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-3 md:mb-4">
-                  <Image
+                  <img
                     src="/checkfills.svg"
                     alt="Verified"
-                    width={32}
-                    height={32}
                     className="w-6 h-6 md:w-8 md:h-8 flex-shrink-0"
-                    unoptimized
                   />
                   <h3 className="text-lg md:text-xl font-bold text-gray-900">Create Your Account</h3>
                 </div>
@@ -141,13 +133,10 @@ export default function Home() {
 
               <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-3 md:mb-4">
-                  <Image
+                  <img
                     src="/checkfills.svg"
                     alt="Verified"
-                    width={32}
-                    height={32}
                     className="w-6 h-6 md:w-8 md:h-8 flex-shrink-0"
-                    unoptimized
                   />
                   <h3 className="text-lg md:text-xl font-bold text-gray-900">Book a Video Consultation</h3>
                 </div>
@@ -158,13 +147,10 @@ export default function Home() {
 
               <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-3 md:mb-4">
-                  <Image
+                  <img
                     src="/checkfills.svg"
                     alt="Verified"
-                    width={32}
-                    height={32}
                     className="w-6 h-6 md:w-8 md:h-8 flex-shrink-0"
-                    unoptimized
                   />
                   <h3 className="text-lg md:text-xl font-bold text-gray-900">Manage Your Health in One Place</h3>
                 </div>

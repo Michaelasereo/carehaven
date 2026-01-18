@@ -1,7 +1,10 @@
 [build]
   command = "npm run build"
-  publish = ".next"
+  # Next.js plugin handles publish directory automatically
   functions = "netlify/functions"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 # Next.js configuration
 [build.environment]
@@ -11,10 +14,8 @@
 [context.production.environment]
   NODE_ENV = "production"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Next.js handles routing, so we don't need catch-all redirects
+# Static files from /public are served automatically by Next.js
 
 [[headers]]
   for = "/*"

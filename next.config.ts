@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js needs unsafe-eval in dev
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
-              "img-src 'self' data: https: blob:",
+              "img-src 'self' data: https: blob: 'unsafe-inline'",
               "connect-src 'self' https://*.supabase.co https://api.stripe.com https://checkout.stripe.com wss://*.supabase.co https://*.daily.co wss://*.daily.co https://thequietherapy.daily.co wss://thequietherapy.daily.co https://challenges.cloudflare.com https://*.cloudflare.com https://fonts.googleapis.com",
               "frame-src 'self' https://*.daily.co https://checkout.stripe.com",
             ].join('; '),

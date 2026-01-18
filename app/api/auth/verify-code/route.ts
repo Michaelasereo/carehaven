@@ -82,11 +82,48 @@ export async function POST(request: Request) {
     // Get dashboard redirect path based on user role
     const redirectPath = await getDashboardRedirectPath(userId)
 
-    return NextResponse.json({
-      success: true,
-      message: 'Email verified successfully',
-      redirectPath,
-    })
+    // Generate a magic link to create a session for the verified user
+    // This allows the user to be automatically signed in after verification
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const callbackUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(redirectPath)}`
+      
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: email,
+        options: {
+          redirectTo: callbackUrl,
+        },
+      })
+
+      if (linkError || !linkData?.properties?.action_link) {
+        console.error('❌ Error generating magic link:', linkError)
+        // If magic link generation fails, return redirect path and let client handle sign-in
+        return NextResponse.json({
+          success: true,
+          message: 'Email verified successfully',
+          redirectPath,
+          requiresSignIn: true, // Flag to indicate user needs to sign in
+        })
+      }
+
+      // Return the magic link URL that will create a session when visited
+      return NextResponse.json({
+        success: true,
+        message: 'Email verified successfully',
+        redirectPath,
+        magicLink: linkData.properties.action_link, // This link will create a session when visited
+      })
+    } catch (linkErr: any) {
+      console.error('❌ Error generating magic link:', linkErr)
+      // Fallback: return redirect path
+      return NextResponse.json({
+        success: true,
+        message: 'Email verified successfully',
+        redirectPath,
+        requiresSignIn: true,
+      })
+    }
   } catch (error: any) {
     console.error('❌ Error in verify-code API:', error)
     return NextResponse.json(

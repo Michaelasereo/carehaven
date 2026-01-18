@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 interface PasswordRequirements {
@@ -18,7 +18,12 @@ interface PasswordRequirements {
 
 export function ResetPasswordForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+  const [code, setCode] = useState('')
+  const [email, setEmail] = useState('')
+  const [codeVerified, setCodeVerified] = useState(false)
+  const [verifyingCode, setVerifyingCode] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -26,17 +31,48 @@ export function ResetPasswordForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check if we have a valid session (user clicked reset link)
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        setError('Invalid or expired reset link. Please request a new password reset.')
-      }
+    // Get code and email from URL params
+    const urlCode = searchParams.get('code')
+    const urlEmail = searchParams.get('email')
+    
+    if (urlCode && urlEmail) {
+      setCode(urlCode)
+      setEmail(urlEmail)
+      // Auto-verify code if provided in URL
+      handleVerifyCode(urlCode, urlEmail)
     }
-    checkSession()
-  }, [supabase])
+  }, [searchParams])
+
+  const handleVerifyCode = async (codeToVerify: string, emailToVerify: string) => {
+    setVerifyingCode(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/auth/verify-reset-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeToVerify, email: emailToVerify }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Invalid or expired reset code')
+        setVerifyingCode(false)
+        return
+      }
+
+      setCodeVerified(true)
+      setUserId(result.userId)
+      setVerifyingCode(false)
+    } catch (err: any) {
+      setError('Failed to verify reset code. Please try again.')
+      setVerifyingCode(false)
+    }
+  }
 
   const checkPasswordRequirements = (pwd: string): PasswordRequirements => {
     return {
@@ -57,6 +93,20 @@ export function ResetPasswordForm() {
     setError(null)
     setLoading(true)
 
+    // If code not verified yet, verify it first
+    if (!codeVerified) {
+      if (!code || !email) {
+        setError('Reset code and email are required')
+        setLoading(false)
+        return
+      }
+      await handleVerifyCode(code, email)
+      if (!codeVerified) {
+        setLoading(false)
+        return
+      }
+    }
+
     if (!allRequirementsMet) {
       setError('Password does not meet all requirements')
       setLoading(false)
@@ -69,25 +119,37 @@ export function ResetPasswordForm() {
       return
     }
 
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: password,
-    })
-
-    if (updateError) {
-      if (updateError.message.includes('expired') || updateError.message.includes('invalid')) {
-        setError('This reset link has expired or is invalid. Please request a new password reset.')
-      } else {
-        setError(updateError.message)
-      }
+    if (!userId) {
+      setError('User ID not found. Please request a new password reset.')
       setLoading(false)
       return
     }
 
-    setSuccess(true)
-    // Redirect to sign in after a short delay
-    setTimeout(() => {
-      router.push('/auth/signin')
-    }, 2000)
+    // Update password using service role (since user is not authenticated)
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, password }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to reset password')
+        setLoading(false)
+        return
+      }
+
+      setSuccess(true)
+      // Redirect to sign in after a short delay
+      setTimeout(() => {
+        router.push('/auth/signin?passwordReset=true')
+      }, 2000)
+    } catch (err: any) {
+      setError('Failed to reset password. Please try again.')
+      setLoading(false)
+    }
   }
 
   if (success) {
@@ -108,8 +170,70 @@ export function ResetPasswordForm() {
     )
   }
 
+  // Show code verification step if code/email provided but not verified
+  if (!codeVerified && (code || email)) {
+    return (
+      <div className="space-y-4">
+        {verifyingCode ? (
+          <div className="text-center py-4">
+            <p className="text-gray-600">Verifying reset code...</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="reset-code">Reset Code</Label>
+              <Input
+                id="reset-code"
+                type="text"
+                placeholder="Enter 6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                maxLength={6}
+                disabled={verifyingCode}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={verifyingCode}
+              />
+            </div>
+            {error && (
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+                {error}
+              </div>
+            )}
+            <Button
+              type="button"
+              onClick={() => handleVerifyCode(code, email)}
+              className="w-full bg-teal-600 hover:bg-teal-700"
+              disabled={!code || !email || verifyingCode || code.length !== 6}
+            >
+              {verifyingCode ? 'Verifying...' : 'Verify Code'}
+            </Button>
+            <p className="text-center text-sm text-gray-600">
+              <Link href="/auth/reset-password" className="text-teal-600 hover:text-teal-700 hover:underline">
+                Request a new reset code
+              </Link>
+            </p>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {codeVerified && (
+        <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Reset code verified. Please enter your new password.
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="reset-password">New Password</Label>
         <div className="relative">

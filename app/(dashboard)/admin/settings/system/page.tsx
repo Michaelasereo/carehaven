@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/card'
 import { ConsultationPriceManager } from '@/components/admin/consultation-price-manager'
+import { FAQManager } from '@/components/admin/faq-manager'
 
 export default async function AdminSystemSettingsPage() {
   const supabase = await createClient()
@@ -30,8 +31,12 @@ export default async function AdminSystemSettingsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ConsultationPriceManager />
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ConsultationPriceManager />
+        </div>
+        
+        <FAQManager />
       </div>
     </div>
   )

@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/lib/store/ui-store'
@@ -60,14 +59,10 @@ export function AdminSidebar() {
         {/* Mobile close button */}
         <div className="flex h-16 items-center justify-between px-6 border-b">
           <div className="flex items-center">
-            <Image
+            <img
               src="/carehaven-logo.svg"
               alt="Care Haven Logo"
-              width={120}
-              height={32}
               className="h-8 w-auto"
-              priority
-              unoptimized
             />
           </div>
           <Button

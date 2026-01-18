@@ -31,13 +31,13 @@ interface AdminUser {
 
 const adminUsers: AdminUser[] = [
   {
-    email: 'michaelasereo@gmail.com',
+    email: 'mycarehaven@gmail.com',
     password: 'carehaven',
     full_name: 'Super Admin',
     role: 'super_admin',
   },
   {
-    email: 'obgynect@gmail.com',
+    email: 'asereopeyemimichael@gmail.com',
     password: 'carehaven',
     full_name: 'Admin',
     role: 'admin',

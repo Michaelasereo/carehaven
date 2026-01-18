@@ -5,52 +5,66 @@ import { Footer } from '@/components/layout/Footer'
 import { Stethoscope, Calendar, FileText, Clock, ArrowRight } from 'lucide-react'
 
 // FAQ Accordion Component
-function FAQAccordion() {
+function FAQAccordion({ faqs }: { faqs: Array<{ question: string; answer: string }> }) {
+  if (faqs.length === 0) {
+    return (
+      <div className="text-gray-500 text-center py-8">
+        <p>No FAQs available at the moment.</p>
+      </div>
+    )
+  }
+
   return (
     <Accordion type="single" collapsible className="w-full">
-      <AccordionItem value="item-1">
-        <AccordionTrigger className="text-left">
-          What is Care Haven?
-        </AccordionTrigger>
-        <AccordionContent className="text-gray-600">
-          Care Haven is a secure and confidential digital health platform designed for encrypted video consultations, virtual visits, electronic prescriptions, lab referrals, and health record management.
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="item-2">
-        <AccordionTrigger className="text-left">
-          Is my information secure?
-        </AccordionTrigger>
-        <AccordionContent className="text-gray-600">
-          Yes, absolutely. Care Haven uses industry-leading security measures including end-to-end encryption, 
-          HIPAA-compliant data storage, and regular security audits. Your personal health information is protected 
-          with the same standards used by major healthcare institutions.
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="item-3">
-        <AccordionTrigger className="text-left">
-          How do I book an appointment?
-        </AccordionTrigger>
-        <AccordionContent className="text-gray-600">
-          Booking an appointment is simple. Sign up for a free account, browse available healthcare providers, 
-          select a convenient time slot, and confirm your appointment. You&apos;ll receive confirmation and reminders 
-          via email and SMS before your consultation.
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="item-4">
-        <AccordionTrigger className="text-left">
-          Can I get a prescription through Care Haven?
-        </AccordionTrigger>
-        <AccordionContent className="text-gray-600">
-          Yes, licensed healthcare providers on our platform can issue electronic prescriptions after a consultation. 
-          Prescriptions are sent directly to your preferred pharmacy and can also be viewed in your Care Haven account 
-          for easy reference and management.
-        </AccordionContent>
-      </AccordionItem>
+      {faqs.map((faq, index) => (
+        <AccordionItem key={index} value={`item-${index}`}>
+          <AccordionTrigger className="text-left">
+            {faq.question}
+          </AccordionTrigger>
+          <AccordionContent className="text-gray-600">
+            {faq.answer}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
     </Accordion>
   )
 }
 
-export default function Home() {
+export default async function Home() {
+  // Fetch FAQs using Supabase client (with public RLS policy)
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  
+  let faqs: Array<{ question: string; answer: string }> = []
+  let displayCount = 4
+  
+  try {
+    // Get display count from system_settings
+    const { data: settings } = await supabase
+      .from('system_settings')
+      .select('faq_display_count')
+      .single()
+    
+    displayCount = settings?.faq_display_count || 4
+    
+    // Fetch active FAQs (public RLS policy allows this)
+    const { data: faqData, error } = await supabase
+      .from('faqs')
+      .select('question, answer')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .limit(displayCount)
+    
+    if (!error && faqData) {
+      faqs = faqData
+    } else if (error) {
+      console.error('Error fetching FAQs:', error)
+    }
+  } catch (error) {
+    console.error('Error fetching FAQs:', error)
+    // Fallback to empty array if fetch fails
+    faqs = []
+  }
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
@@ -296,7 +310,7 @@ export default function Home() {
               
               {/* Right Column - FAQ Accordion */}
               <div>
-                <FAQAccordion />
+                <FAQAccordion faqs={faqs} />
               </div>
             </div>
           </div>

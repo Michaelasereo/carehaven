@@ -18,7 +18,6 @@ import {
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import Image from 'next/image'
 
 const enrollmentSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -169,13 +168,10 @@ export function DoctorEnrollmentForm() {
   return (
     <div className="bg-white rounded-lg shadow-lg p-8">
       <div className="text-center mb-8">
-        <Image
+        <img
           src="/carehaven-logo.svg"
           alt="Care Haven Logo"
-          width={150}
-          height={40}
           className="h-10 w-auto mx-auto mb-4"
-          unoptimized
         />
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Doctor's Enrollment</h1>
         <p className="text-gray-600 italic">Made Simple & Secure</p>

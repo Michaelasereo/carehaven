@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -34,14 +33,10 @@ export function DoctorSidebar() {
     <div className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-gray-50 border-r">
       <div className="flex h-16 items-center px-6 border-b">
         <div className="flex items-center">
-          <Image
+          <img
             src="/carehaven-logo.svg"
             alt="Care Haven Logo"
-            width={120}
-            height={32}
             className="h-8 w-auto"
-            priority
-            unoptimized
           />
         </div>
       </div>

@@ -1,10 +1,18 @@
 import { Footer } from '@/components/layout/Footer'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Privacy Policy</h1>
+        
+        <div className="mb-6">
+          <Link href="/">
+            <Button variant="outline">← Back to Home</Button>
+          </Link>
+        </div>
         
         <div className="prose prose-lg max-w-none space-y-6">
           <section>

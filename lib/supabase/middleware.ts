@@ -69,7 +69,7 @@ export async function updateSession(request: NextRequest) {
   const isAuthApiRoute = request.nextUrl.pathname.startsWith('/api/auth/')
   
   // Public routes that don't require auth
-  const publicRoutes = ['/', '/about', '/contact', '/pricing', '/doctor-enrollment']
+  const publicRoutes = ['/', '/about', '/contact', '/pricing', '/doctor-enrollment', '/privacy-policy', '/terms-of-service', '/support', '/how-it-works']
   const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/doctor-enrollment')
 
   // If user is not signed in and the current path is not public or auth route

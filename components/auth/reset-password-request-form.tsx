@@ -29,17 +29,26 @@ export function ResetPasswordRequestForm() {
       return
     }
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password/confirm`,
-    })
+    try {
+      const response = await fetch('/api/auth/send-reset-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
 
-    if (resetError) {
-      setError(resetError.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'Failed to send password reset code')
+        setLoading(false)
+        return
+      }
+
+      setSuccess(true)
+    } catch (err: any) {
+      setError('Failed to send password reset code. Please try again.')
       setLoading(false)
-      return
     }
-
-    setSuccess(true)
   }
 
   if (success) {
@@ -48,10 +57,10 @@ export function ResetPasswordRequestForm() {
         <div className="rounded-md bg-green-50 p-4 text-sm text-green-800">
           <p className="font-semibold">Password reset email sent!</p>
           <p className="mt-2">
-            We've sent a password reset link to <strong>{email}</strong>. Please check your inbox and click the link to reset your password.
+            If an account exists with this email, we've sent a password reset code to <strong>{email}</strong>. Please check your inbox.
           </p>
           <p className="mt-2 text-xs">
-            The link will expire in 24 hours. If you don't see the email, check your spam folder.
+            The code will expire in 15 minutes. If you don't see the email, check your spam folder.
           </p>
         </div>
         <Link href="/auth/signin">

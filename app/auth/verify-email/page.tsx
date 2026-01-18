@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -71,14 +70,50 @@ function VerifyEmailContent() {
       // Code verified successfully
       setVerified(true)
       
-      // Refresh session to ensure it's updated
+      // Check if this is an admin verification
+      const isAdmin = searchParams.get('admin') === 'true'
+      
+      // If magic link is provided, use it to create session
+      if (result.magicLink) {
+        // Redirect to magic link which will create session and redirect to dashboard
+        window.location.href = result.magicLink
+        return
+      }
+
+      // If requiresSignIn flag is set, redirect to sign-in page
+      if (result.requiresSignIn) {
+        if (isAdmin) {
+          router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
+        } else {
+          router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
+        }
+        return
+      }
+
+      // Try to refresh session
       await supabase.auth.refreshSession()
       
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
+      // Check if session exists
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session) {
+        // No session, redirect to sign-in with verified flag
+        if (isAdmin) {
+          router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
+        } else {
+          router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
+        }
+        return
+      }
+      
+      // Session exists, redirect to appropriate dashboard
+      // For admin flow, always redirect to admin dashboard
+      if (isAdmin) {
+        router.push('/admin/dashboard')
+      } else {
         const redirectPath = result.redirectPath || '/patient'
         router.push(redirectPath)
-      }, 1500)
+      }
     } catch (error: any) {
       console.error('Error verifying code:', error)
       setError('Failed to verify code. Please try again.')
@@ -135,14 +170,10 @@ function VerifyEmailContent() {
       <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <Image
+            <img
               src="/carehaven-logo.svg"
               alt="Care Haven Logo"
-              width={200}
-              height={64}
               className="h-16 w-auto"
-              priority
-              unoptimized
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Verify your email</h1>

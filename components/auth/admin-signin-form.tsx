@@ -107,43 +107,31 @@ export function AdminSignInForm() {
         return
       }
 
-      // Use API route to set cookies properly
-      const response = await fetch('/api/auth/signin', {
+      // Admin credentials are valid - send verification code instead of signing in directly
+      // Sign out the temporary session since we'll create a new one after verification
+      await supabase.auth.signOut()
+
+      // Send verification code
+      const codeResponse = await fetch('/api/auth/send-verification-code', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           email: formData.email,
-          password: formData.password,
+          userId: data.user.id,
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to sign in')
+      if (!codeResponse.ok) {
+        const errorData = await codeResponse.json()
+        setError(errorData.error || 'Failed to send verification code')
         setLoading(false)
         return
       }
 
-      // Wait a moment for cookies to be set from the API response
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Check if cookies are set
-      const hasAuthCookies = document.cookie.includes('sb-') || document.cookie.includes('auth-debug')
-      console.log('🍪 Has auth cookies:', hasAuthCookies)
-      
-      if (!hasAuthCookies) {
-        console.warn('⚠️ No auth cookies detected - forcing reload to sync cookies')
-        window.location.reload()
-        return
-      }
-
-      // Redirect to callback route which will handle server-side session validation and redirect
-      const redirectUrl = `/auth/callback?next=${encodeURIComponent(redirectTo || '/admin/dashboard')}`
-      
-      console.log('🔄 Redirecting to admin dashboard:', redirectUrl)
-      window.location.replace(redirectUrl)
+      // Redirect to verification page with admin flag
+      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}&admin=true`)
       return
 
     } catch (err) {

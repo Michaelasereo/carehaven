@@ -94,7 +94,7 @@ export function DoctorEnrollmentForm() {
     try {
       // Sign up the doctor
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
+        email: data.email.trim().toLowerCase(),
         password: data.password,
         options: {
           data: {
@@ -103,27 +103,57 @@ export function DoctorEnrollmentForm() {
             license_type: data.licenseType,
             specialty: data.specialty,
           },
-          // Don't set emailRedirectTo to prevent Supabase from sending confirmation email
-          // We handle verification via codes instead
-          emailRedirectTo: undefined,
+          // Omit emailRedirectTo - we handle verification via codes instead
         },
       })
 
       if (signUpError) {
-        // Ignore email sending errors since we handle verification via codes
-        if (signUpError.message.includes('Error sending confirmation email') || 
-            signUpError.message.includes('email confirmation') ||
-            signUpError.message.includes('Failed to send email')) {
-          console.warn('Supabase email confirmation error ignored - using verification codes instead')
-          // Continue with enrollment flow even if Supabase email fails
-        } else if (signUpError.message.includes('already registered')) {
+        console.error('Signup error details:', {
+          message: signUpError.message,
+          status: signUpError.status,
+          name: signUpError.name,
+          error: signUpError,
+        })
+        
+        // Log the full error for debugging 422 errors
+        if (signUpError.status === 422) {
+          console.error('422 Error - Full error object:', JSON.stringify(signUpError, null, 2))
+        }
+        
+        // Handle specific error cases
+        if (signUpError.message.includes('already registered') || 
+            signUpError.message.includes('already exists') ||
+            signUpError.message.includes('User already registered')) {
           setError('An account with this email already exists. Please sign in instead.')
           setLoading(false)
           return
-        } else {
-          setError(signUpError.message)
+        } else if (signUpError.message.includes('Invalid email') || 
+                   signUpError.message.includes('email format')) {
+          setError('Please enter a valid email address.')
           setLoading(false)
           return
+        } else if (signUpError.message.includes('Password') || 
+                   signUpError.message.includes('password')) {
+          setError('Password does not meet requirements. Please check and try again.')
+          setLoading(false)
+          return
+        } else if (signUpError.status === 422) {
+          // 422 Unprocessable Entity - usually means validation failed
+          setError(signUpError.message || 'Invalid signup data. Please check all fields and try again.')
+          setLoading(false)
+          return
+        } else {
+          // Ignore email sending errors since we handle verification via codes
+          if (signUpError.message.includes('Error sending confirmation email') || 
+              signUpError.message.includes('email confirmation') ||
+              signUpError.message.includes('Failed to send email')) {
+            console.warn('Supabase email confirmation error ignored - using verification codes instead')
+            // Continue with enrollment flow even if Supabase email fails
+          } else {
+            setError(signUpError.message || 'Failed to create account. Please try again.')
+            setLoading(false)
+            return
+          }
         }
       }
 

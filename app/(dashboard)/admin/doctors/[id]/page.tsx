@@ -25,6 +25,14 @@ export default async function DoctorDetailPage({
 }) {
   // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
+  
+  // Get current user profile for role-based UI (e.g., verify button visibility)
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user ? await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single() : { data: null }
 
   // Fetch doctor details
   const { data: doctor, error } = await supabase
@@ -114,7 +122,7 @@ export default async function DoctorDetailPage({
             <p className="text-gray-600 mt-1">View and manage doctor profile</p>
           </div>
         </div>
-        {!doctor.license_verified && profile.role === 'admin' && (
+        {!doctor.license_verified && profile?.role === 'super_admin' && (
           <VerifyDoctorButton doctorId={doctor.id} />
         )}
       </div>

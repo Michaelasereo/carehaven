@@ -15,6 +15,14 @@ export default async function AdminUserDetailPage({
 }) {
   // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
+  
+  // Get current user profile for role-based UI (e.g., verify button visibility)
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  const { data: currentProfile } = currentUser ? await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', currentUser.id)
+    .single() : { data: null }
 
   // Fetch user profile
   const { data: profile } = await supabase
@@ -197,7 +205,7 @@ export default async function AdminUserDetailPage({
               Account Actions
             </h3>
             <div className="space-y-2">
-              {profile.role === 'doctor' && !profile.license_verified && currentProfile.role === 'admin' && (
+              {profile.role === 'doctor' && !profile.license_verified && currentProfile?.role === 'super_admin' && (
                 <Link href={`/admin/doctors?verify=${params.id}`}>
                   <Button variant="default" className="w-full">
                     Verify License

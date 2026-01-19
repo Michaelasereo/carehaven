@@ -64,7 +64,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Auth routes that don't require authentication
-  const authRoutes = ['/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/forgot-password', '/auth/reset-password', '/auth/callback', '/admin/login', '/doctor/login', '/doctor/enrollment']
+  const authRoutes = ['/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/forgot-password', '/auth/reset-password', '/auth/callback', '/admin/login', '/doctor/login']
   const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route))
   
   // API auth routes

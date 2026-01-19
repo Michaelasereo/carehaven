@@ -73,19 +73,41 @@ function VerifyEmailContent() {
       // Check if this is an admin verification
       const isAdmin = searchParams.get('admin') === 'true'
       
-      // If magic link is provided, use it to create session
-      if (result.magicLink) {
-        // Redirect to magic link which will create session and redirect to dashboard
-        console.log('🔗 Redirecting to magic link for session creation')
-        window.location.href = result.magicLink
+      // If session was created successfully (cookies set server-side)
+      if (result.success && result.redirectPath && !result.requiresSignIn) {
+        console.log('✅ Email verified, session cookies set server-side')
+        
+        // Wait a moment for cookies to be set, then verify session exists
+        // The cookies were set server-side in HTTP-only cookies, so we just need to check
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Verify session exists (cookies should be available now)
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError || !currentSession) {
+          console.warn('⚠️ Session not found after verification, redirecting to login')
+          const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('postVerifyRedirect', redirectPath)
+          }
+          if (isAdmin) {
+            router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
+          } else {
+            router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
+          }
+          return
+        }
+
+        console.log('✅ Session verified, redirecting to dashboard')
+        // Session is set via cookies, redirect directly to dashboard
+        const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
+        router.push(redirectPath)
         return
       }
 
-      // If requiresSignIn flag is set, the magic link generation failed
-      // But since verification is successful, redirect to dashboard
-      // The user will need to sign in manually, but we preserve the verified state
+      // Fallback: If requiresSignIn flag is set, redirect to login
       if (result.requiresSignIn) {
-        console.warn('⚠️ Magic link generation failed, redirecting to login with verified flag')
+        console.warn('⚠️ Session creation failed, redirecting to login with verified flag')
         const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
         // Store redirect path in sessionStorage so login can redirect after sign-in
         if (typeof window !== 'undefined') {
@@ -97,32 +119,6 @@ function VerifyEmailContent() {
           router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
         }
         return
-      }
-
-      // Try to refresh session
-      await supabase.auth.refreshSession()
-      
-      // Check if session exists
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        // No session, redirect to sign-in with verified flag
-        if (isAdmin) {
-          router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
-        } else {
-          router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
-        }
-        return
-      }
-      
-      // Session exists, redirect to appropriate dashboard
-      // For admin flow, always redirect to admin dashboard (respect admin flag even if role differs)
-      if (isAdmin) {
-        router.push('/admin/dashboard')
-      } else {
-        // Use redirectPath from server (which is role-based) or default to /patient
-        const redirectPath = result.redirectPath || '/patient'
-        router.push(redirectPath)
       }
     } catch (error: any) {
       console.error('Error verifying code:', error)

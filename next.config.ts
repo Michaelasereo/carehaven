@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable compression
+  compress: true,
+  
+  // Disable source maps in production (reduces build size)
+  productionBrowserSourceMaps: false,
+  
   images: {
     remotePatterns: [
       {
@@ -12,6 +18,9 @@ const nextConfig: NextConfig = {
         hostname: '**.daily.co',
       },
     ],
+    // Optimize images
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
   
   // Ensure proper transpilation for Edge Runtime compatibility
@@ -28,12 +37,14 @@ const nextConfig: NextConfig = {
     // To disable, use: next dev --no-turbo (in package.json scripts)
   },
   
-  // Logging for debugging
-  logging: {
-    fetches: {
-      fullUrl: true,
+  // Logging for debugging (only in development)
+  ...(process.env.NODE_ENV === 'development' && {
+    logging: {
+      fetches: {
+        fullUrl: true,
+      },
     },
-  },
+  }),
   
   // Headers for CSP (Content Security Policy) - Allow Google Fonts
   async headers() {

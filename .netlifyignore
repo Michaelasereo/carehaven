@@ -1,0 +1,36 @@
+# .netlifyignore - Exclude unnecessary files from Netlify deployment
+# This dramatically reduces upload size and file count
+
+# Cache and build artifacts (never needed in production)
+.next/cache/**
+.next/trace
+.next/logs
+.next/analytics
+.next/diagnostics
+.next/types/**
+.next/fallback-build-manifest.json
+
+# Standalone output (huge node_modules duplication - not needed for Netlify)
+.next/standalone/**
+
+# Source maps (optional - remove for smaller deploys)
+.next/**/*.map
+
+# Development files
+.next/**/*.log
+.next/**/*.tsbuildinfo
+.next/**/.rscinfo
+.next/**/.previewinfo
+
+# Keep only essential production files:
+# ✅ .next/server/pages/ (SSR pages)
+# ✅ .next/static/ (static assets)
+# ✅ .next/server/middleware-manifest.json
+# ✅ .next/server/middleware-runtime.js
+# ✅ .next/BUILD_ID
+# ✅ .next/server/app-paths-manifest.json
+# ✅ .next/server/app-build-manifest.json
+# ✅ .next/server/required-server-files.json
+# ✅ .next/server/pages-manifest.json
+# ✅ .next/server/build-manifest.json
+# ✅ .next/server/prerender-manifest.json

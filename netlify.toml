@@ -23,6 +23,13 @@
   NETLIFY_SDK_METADATA_URL = ""
   # Control plugin behavior (set to "false" to disable plugins if needed)
   # NETLIFY_USE_PLUGINS = "true"
+  # Network optimization for blob uploads
+  NETLIFY_RETRY_COUNT = "5"
+  NETLIFY_RETRY_TIMEOUT = "300000"
+  NODE_OPTIONS = "--max-http-header-size=16384"
+  # CDN upload optimization
+  NETLIFY_CDN_UPLOAD_CONCURRENCY = "3"
+  NETLIFY_CDN_UPLOAD_TIMEOUT = "600"
   # Required environment variables (set in Netlify dashboard):
   # NEXT_PUBLIC_SUPABASE_URL - Your Supabase project URL
   # NEXT_PUBLIC_SUPABASE_ANON_KEY - Your Supabase anonymous key
@@ -32,6 +39,11 @@
 
 [context.production.environment]
   NODE_ENV = "production"
+  # Production-specific network optimizations
+  NETLIFY_RETRY_COUNT = "5"
+  NETLIFY_RETRY_TIMEOUT = "300000"
+  NETLIFY_CDN_UPLOAD_CONCURRENCY = "3"
+  NETLIFY_CDN_UPLOAD_TIMEOUT = "600"
 
 # Build settings for different contexts
 [context.branch-deploy.environment]
@@ -50,4 +62,36 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=()"
+    Cache-Control = "public, max-age=3600"
+
+# Cache static assets aggressively to reduce upload size on redeploys
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.jpeg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
 

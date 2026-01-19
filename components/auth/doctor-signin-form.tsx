@@ -225,7 +225,7 @@ export function DoctorSignInForm() {
         
         <p className="text-center text-sm text-gray-600">
           New to the platform?{' '}
-          <Link href="/doctor/enrollment" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
+          <Link href="/doctor-enrollment" className="text-teal-600 hover:text-teal-700 hover:underline font-medium">
             Enroll as a Doctor
           </Link>
         </p>

@@ -82,12 +82,13 @@ export async function POST(request: Request) {
     // Get dashboard redirect path based on user role
     const redirectPath = await getDashboardRedirectPath(userId)
 
-    // Generate a magic link to create a session for the verified user
-    // This allows the user to be automatically signed in after verification
+    // Create session securely using server-side approach
+    // This sets HTTP-only cookies instead of exposing tokens to client
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       const callbackUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(redirectPath)}`
       
+      // Generate magic link to get hashed token
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
         email: email,
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
         },
       })
 
-      if (linkError || !linkData?.properties?.action_link) {
+      if (linkError || !linkData?.properties?.hashed_token) {
         console.error('❌ Error generating magic link:', linkError)
         console.error('   Callback URL:', callbackUrl)
         console.error('   User ID:', userId)
@@ -109,19 +110,72 @@ export async function POST(request: Request) {
         })
       }
 
-      console.log('✅ Magic link generated successfully')
-      console.log('   Callback URL:', callbackUrl)
+      // Verify the token to get a session
+      const tokenHash = linkData.properties.hashed_token
+      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'magiclink',
+        email: email,
+      })
+
+      if (verifyError || !verifyData?.session) {
+        console.error('❌ Error verifying token to create session:', verifyError)
+        // Fallback: return redirect path
+        return NextResponse.json({
+          success: true,
+          message: 'Email verified successfully',
+          redirectPath,
+          requiresSignIn: true,
+        })
+      }
+
+      const session = verifyData.session
+      console.log('✅ Session created successfully after verification')
       console.log('   Redirect path:', redirectPath)
 
-      // Return the magic link URL that will create a session when visited
-      return NextResponse.json({
+      // Create response with success message (NO TOKENS IN RESPONSE)
+      const response = NextResponse.json({
         success: true,
         message: 'Email verified successfully',
         redirectPath,
-        magicLink: linkData.properties.action_link, // This link will create a session when visited
+        // DO NOT include session tokens - they're set in cookies below
       })
+
+      // Set secure HTTP-only cookies server-side (following signin route pattern)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      const projectRef = supabaseUrl.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1] || 'default'
+      const cookieName = `sb-${projectRef}-auth-token`
+      
+      // Calculate expiration date
+      const expiresAt = session.expires_at
+        ? new Date(session.expires_at * 1000)
+        : new Date(Date.now() + 3600 * 1000) // Default 1 hour
+
+      // Create the token payload (Supabase SSR expects this format)
+      const tokenPayload = {
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_at: session.expires_at,
+        expires_in: session.expires_in,
+        token_type: session.token_type,
+        user: session.user,
+      }
+
+      // Set secure HTTP-only cookie (tokens never exposed to client-side JS)
+      response.cookies.set({
+        name: cookieName,
+        value: JSON.stringify(tokenPayload),
+        httpOnly: true, // Prevents JavaScript access
+        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+        sameSite: 'lax', // CSRF protection
+        path: '/',
+        expires: expiresAt,
+      })
+
+      console.log('✅ Secure cookies set server-side')
+      return response
     } catch (linkErr: any) {
-      console.error('❌ Error generating magic link:', linkErr)
+      console.error('❌ Error creating session after verification:', linkErr)
       // Fallback: return redirect path
       return NextResponse.json({
         success: true,

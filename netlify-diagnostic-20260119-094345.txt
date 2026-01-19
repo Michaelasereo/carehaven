@@ -1,0 +1,113 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. NETWORK LAYER CHECK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Testing connectivity to Netlify's blob endpoints...
+\033[0;31m❌ api.netlify.com is NOT reachable\033[0m
+\033[1;33m⚠️  blob-storage.prod.netlify.com may not be directly accessible (this is normal)\033[0m
+
+Checking DNS resolution...
+api.netlify.com:
+Server:		8.8.8.8
+Address:	8.8.8.8#53
+
+Non-authoritative answer:
+Name:	api.netlify.com
+Address: 3.149.60.104
+
+
+blob-storage.prod.netlify.com:
+Server:		8.8.8.8
+Address:	8.8.8.8#53
+
+Non-authoritative answer:
+Name:	blob-storage.prod.netlify.com
+Address: 18.208.88.157
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. FIREWALL/PROXY INVESTIGATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\033[0;32m✅ No proxy detected\033[0m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. BUILD ARTIFACT ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+.next/ directory:
+  Size: 479M
+  Files: 5140
+public/ directory:
+  Size: 4.2M
+  Files: 85
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. NETLIFY CLI STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Checking Netlify CLI authentication...
+──────────────────────┐
+ Current Netlify User │
+──────────────────────┘
+Name:  Opeyemi Michael
+Email: asereopeyemimichael@gmail.com
+Teams: 
+  - Tasklinkers
+────────────────────┐
+ Netlify Project Info  │
+────────────────────┘
+Current project: carehavenapp
+Netlify TOML:    /Users/macbook/Desktop/carehaven/netlify.toml
+Admin URL:       https://app.netlify.com/projects/carehavenapp
+Project URL:     https://carehaven.app
+Project Id:      1cb1f8d3-1c01-493b-8ab2-862e2e859430
+
+\033[0;32m✅ Netlify CLI is authenticated\033[0m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. ENVIRONMENT VARIABLES CHECK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Checking Netlify-related environment variables:
+\033[1;33m⚠️  NETLIFY_TOKEN is not set\033[0m
+\033[1;33m⚠️  NETLIFY_RETRY_COUNT is not set (default: 3)\033[0m
+\033[1;33m⚠️  NETLIFY_RETRY_TIMEOUT is not set (default: 30000)\033[0m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. NETLIFY SERVICE STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Checking Netlify status page...
+{"page":{"id":"83dz7syz0j3x","name":"Netlify","url":"https://www.netlifystatus.com","time_zone":"Etc/UTC","updated_at":"2026-01-19T08:21:39.653Z"},"status":{"indicator":"none","description":"All Systems Operational"}}
+\033[1;33m⚠️  Install 'jq' for better status parsing\033[0m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. CONFIGURATION CHECK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\033[0;32m✅ netlify.toml found\033[0m
+\033[0;32m✅ Retry configuration found in netlify.toml\033[0m
+\033[0;32m✅ Timeout configured:   # Increase build timeout for large Next.js builds (default is 15 minutes)\033[0m
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. RECOMMENDATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Based on the diagnostics above, here are recommended actions:
+
+1. If network connectivity issues:
+   - Check firewall/proxy settings
+   - Try: NETLIFY_REGION=us npx netlify-cli deploy --prod
+
+2. If too many files:
+   - Optimize build output
+   - Check .gitignore and .netlifyignore
+   - Consider using: npm run deploy:netlify:retry
+
+3. If authentication issues:
+   - Run: npx netlify-cli login
+   - Clear cache: rm -rf ~/.netlify
+
+4. For maximum reliability:
+   - Use: npm run deploy:netlify:safe
+   - Or: npm run deploy:netlify:retry
+
+5. For debugging:
+   - Use: npm run deploy:netlify:debug
+   - Check logs in: netlify-diagnostic-20260119-094345.txt
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. DIAGNOSTIC COMPLETE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\033[0;32m✅ Diagnostic report saved to: netlify-diagnostic-20260119-094345.txt\033[0m
+
+Next steps:
+  1. Review the diagnostic report above
+  2. Try the recommended deployment commands
+  3. If issues persist, share this diagnostic file with support
+

@@ -57,6 +57,7 @@ function VerifyEmailContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, email }),
+        credentials: 'include', // CRITICAL: Include cookies in request/response
       })
 
       const result = await response.json()
@@ -77,15 +78,53 @@ function VerifyEmailContent() {
       if (result.success && result.redirectPath && !result.requiresSignIn) {
         console.log('✅ Email verified, session cookies set server-side')
         
-        // Wait a moment for cookies to be set, then verify session exists
-        // The cookies were set server-side in HTTP-only cookies, so we just need to check
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Debug: Check cookies before retry
+        if (typeof window !== 'undefined') {
+          console.log('🍪 Current cookies:', document.cookie)
+          
+          // Check debug endpoint to see what cookies server sees
+          try {
+            const debugRes = await fetch('/api/auth/debug-cookies', {
+              credentials: 'include',
+            })
+            const debugData = await debugRes.json()
+            console.log('🍪 Server sees cookies:', debugData)
+          } catch (debugErr) {
+            console.warn('⚠️ Could not check debug cookies:', debugErr)
+          }
+        }
         
-        // Verify session exists (cookies should be available now)
-        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+        // Wait for cookies to propagate and verify session exists
+        // Retry logic to handle timing issues
+        let sessionFound = false
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 300)) // Wait 300ms between attempts
+          
+          // Verify session exists (cookies should be available now)
+          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+          
+          if (currentSession && !sessionError) {
+            console.log('✅ Session verified on attempt', attempt + 1)
+            console.log('   Session user:', currentSession.user.id)
+            sessionFound = true
+            
+            // Session is set via cookies, redirect directly to dashboard
+            const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
+            // Use window.location for full page reload to ensure cookies are read
+            window.location.href = redirectPath
+            return
+          }
+          
+          if (sessionError) {
+            console.warn('⚠️ Session error on attempt', attempt + 1, sessionError.message)
+          } else {
+            console.log('⏳ No session yet on attempt', attempt + 1, '- retrying...')
+          }
+        }
         
-        if (sessionError || !currentSession) {
-          console.warn('⚠️ Session not found after verification, redirecting to login')
+        // If session still not found after retries
+        if (!sessionFound) {
+          console.warn('⚠️ Session not found after verification (after 5 retries), redirecting to login')
           const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('postVerifyRedirect', redirectPath)
@@ -97,12 +136,6 @@ function VerifyEmailContent() {
           }
           return
         }
-
-        console.log('✅ Session verified, redirecting to dashboard')
-        // Session is set via cookies, redirect directly to dashboard
-        const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
-        router.push(redirectPath)
-        return
       }
 
       // Fallback: If requiresSignIn flag is set, redirect to login

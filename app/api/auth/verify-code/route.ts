@@ -110,16 +110,15 @@ export async function POST(request: Request) {
         })
       }
 
-      // Verify the token to get a session
-      const tokenHash = linkData.properties.hashed_token
-      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: 'magiclink',
-        email: email,
-      })
+      // Extract code from magic link URL and exchange for session
+      // The action_link contains a code parameter we can use
+      const actionLink = linkData.properties.action_link
+      const linkUrl = new URL(actionLink)
+      const code = linkUrl.searchParams.get('code') || linkUrl.hash.match(/code=([^&]+)/)?.[1]
 
-      if (verifyError || !verifyData?.session) {
-        console.error('❌ Error verifying token to create session:', verifyError)
+      if (!code) {
+        console.error('❌ No code found in magic link URL')
+        console.error('   Action link:', actionLink)
         // Fallback: return redirect path
         return NextResponse.json({
           success: true,
@@ -129,19 +128,42 @@ export async function POST(request: Request) {
         })
       }
 
-      const session = verifyData.session
+      // Create a regular client (not admin) to exchange code for session
+      // We need to use the anon key, not service role, for exchangeCodeForSession
+      const regularSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+      )
+
+      const { data: sessionData, error: exchangeError } = await regularSupabase.auth.exchangeCodeForSession(code)
+
+      if (exchangeError || !sessionData?.session) {
+        console.error('❌ Error exchanging code for session:', exchangeError)
+        console.error('   Code extracted:', code ? 'yes' : 'no')
+        // Fallback: return redirect path
+        return NextResponse.json({
+          success: true,
+          message: 'Email verified successfully',
+          redirectPath,
+          requiresSignIn: true,
+        })
+      }
+
+      const session = sessionData.session
       console.log('✅ Session created successfully after verification')
       console.log('   Redirect path:', redirectPath)
 
       // Create response with success message (NO TOKENS IN RESPONSE)
+      // Cookies are already set by the SSR client's exchangeCodeForSession
       const response = NextResponse.json({
         success: true,
         message: 'Email verified successfully',
         redirectPath,
-        // DO NOT include session tokens - they're set in cookies below
+        // DO NOT include session tokens - they're set in cookies by SSR client
       })
 
-      // Set secure HTTP-only cookies server-side (following signin route pattern)
+      // The SSR client should have set cookies, but we'll also set them explicitly
+      // to ensure they're properly configured
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
       const projectRef = supabaseUrl.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1] || 'default'
       const cookieName = `sb-${projectRef}-auth-token`
@@ -170,9 +192,15 @@ export async function POST(request: Request) {
         sameSite: 'lax', // CSRF protection
         path: '/',
         expires: expiresAt,
+        domain: undefined, // Let browser set domain automatically
       })
 
       console.log('✅ Secure cookies set server-side')
+      console.log('   Cookie name:', cookieName)
+      console.log('   Cookie expires:', expiresAt.toISOString())
+      console.log('   Session expires_at:', session.expires_at)
+      console.log('   User ID:', session.user.id)
+      
       return response
     } catch (linkErr: any) {
       console.error('❌ Error creating session after verification:', linkErr)

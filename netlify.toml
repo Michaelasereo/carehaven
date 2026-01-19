@@ -1,19 +1,15 @@
 [build]
+  # Standard Next.js build - plugin will handle optimization
   command = "npm run build"
   # Next.js plugin handles publish directory automatically
   functions = "netlify/functions"
   # Increase build timeout for large Next.js builds (default is 15 minutes)
   # Netlify Pro/Team plans support up to 60 minutes
-  publish = ".next"
-  # Timeout in seconds (600 = 10 minutes)
-  # This helps prevent timeouts during extension fetch
   timeout = 600
 
-# Temporarily disabled to bypass extensions fetch issue
-# [[plugins]]
-#   package = "@netlify/plugin-nextjs"
-#   # Plugin configuration to handle extension fetch failures
-#   # If extension fetch fails, plugin will continue with default behavior
+# Next.js plugin is required for proper routing and SSR
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 # Next.js configuration
 [build.environment]

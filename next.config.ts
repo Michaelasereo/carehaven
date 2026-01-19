@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   // Disable source maps in production (reduces build size)
   productionBrowserSourceMaps: false,
   
+  // Explicitly disable standalone output (not needed for Netlify)
+  // Netlify handles Next.js SSR automatically via @netlify/plugin-nextjs
+  // Setting to undefined prevents Next.js from creating .next/standalone/
+  output: undefined, // Don't use 'standalone' - Netlify doesn't need it
+  
   images: {
     remotePatterns: [
       {

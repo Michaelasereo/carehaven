@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { verifyCode, markCodeAsUsed } from '@/lib/auth/verification-code'
+import crypto from 'crypto'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -24,6 +25,39 @@ async function getDashboardRedirectPath(userId: string): Promise<string> {
   } else {
     return '/patient'
   }
+}
+
+/**
+ * Generate a secure random token
+ */
+function generateSecureToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+/**
+ * Create an auto-signin token for the user
+ * Returns the token that can be used to sign in automatically
+ */
+async function createAutoSigninToken(userId: string, email: string): Promise<string | null> {
+  const token = generateSecureToken()
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes expiry
+
+  const { error } = await supabase
+    .from('auto_signin_tokens')
+    .insert({
+      token,
+      user_id: userId,
+      email,
+      expires_at: expiresAt.toISOString(),
+      used: false,
+    })
+
+  if (error) {
+    console.error('❌ Error creating auto-signin token:', error)
+    return null
+  }
+
+  return token
 }
 
 export async function POST(request: Request) {
@@ -55,7 +89,7 @@ export async function POST(request: Request) {
 
     // Confirm email in Supabase
     try {
-      const { data: user, error: updateError } = await supabase.auth.admin.updateUserById(
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
         userId,
         {
           email_confirm: true,
@@ -81,137 +115,35 @@ export async function POST(request: Request) {
 
     // Get dashboard redirect path based on user role
     const redirectPath = await getDashboardRedirectPath(userId)
+    console.log(`📍 Dashboard redirect path for user ${userId}: ${redirectPath}`)
 
-    // Create session securely using server-side approach
-    // This sets HTTP-only cookies instead of exposing tokens to client
-    try {
+    // Create auto-signin token for seamless redirect
+    const autoSigninToken = await createAutoSigninToken(userId, email)
+
+    if (autoSigninToken) {
+      // Return auto-signin URL for seamless redirect
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-      const callbackUrl = `${appUrl}/auth/callback?next=${encodeURIComponent(redirectPath)}`
+      const autoSigninUrl = `${appUrl}/api/auth/auto-signin?token=${autoSigninToken}&redirect=${encodeURIComponent(redirectPath)}`
       
-      // Generate magic link to get hashed token
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: email,
-        options: {
-          redirectTo: callbackUrl,
-        },
-      })
-
-      if (linkError || !linkData?.properties?.hashed_token) {
-        console.error('❌ Error generating magic link:', linkError)
-        console.error('   Callback URL:', callbackUrl)
-        console.error('   User ID:', userId)
-        // If magic link generation fails, return redirect path and let client handle sign-in
-        return NextResponse.json({
-          success: true,
-          message: 'Email verified successfully',
-          redirectPath,
-          requiresSignIn: true, // Flag to indicate user needs to sign in
-        })
-      }
-
-      // Extract code from magic link URL and exchange for session
-      // The action_link contains a code parameter we can use
-      const actionLink = linkData.properties.action_link
-      const linkUrl = new URL(actionLink)
-      const code = linkUrl.searchParams.get('code') || linkUrl.hash.match(/code=([^&]+)/)?.[1]
-
-      if (!code) {
-        console.error('❌ No code found in magic link URL')
-        console.error('   Action link:', actionLink)
-        // Fallback: return redirect path
-        return NextResponse.json({
-          success: true,
-          message: 'Email verified successfully',
-          redirectPath,
-          requiresSignIn: true,
-        })
-      }
-
-      // Create a regular client (not admin) to exchange code for session
-      // We need to use the anon key, not service role, for exchangeCodeForSession
-      const regularSupabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      )
-
-      const { data: sessionData, error: exchangeError } = await regularSupabase.auth.exchangeCodeForSession(code)
-
-      if (exchangeError || !sessionData?.session) {
-        console.error('❌ Error exchanging code for session:', exchangeError)
-        console.error('   Code extracted:', code ? 'yes' : 'no')
-        // Fallback: return redirect path
-        return NextResponse.json({
-          success: true,
-          message: 'Email verified successfully',
-          redirectPath,
-          requiresSignIn: true,
-        })
-      }
-
-      const session = sessionData.session
-      console.log('✅ Session created successfully after verification')
-      console.log('   Redirect path:', redirectPath)
-
-      // Create response with success message (NO TOKENS IN RESPONSE)
-      // Cookies are already set by the SSR client's exchangeCodeForSession
-      const response = NextResponse.json({
-        success: true,
-        message: 'Email verified successfully',
-        redirectPath,
-        // DO NOT include session tokens - they're set in cookies by SSR client
-      })
-
-      // The SSR client should have set cookies, but we'll also set them explicitly
-      // to ensure they're properly configured
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-      const projectRef = supabaseUrl.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1] || 'default'
-      const cookieName = `sb-${projectRef}-auth-token`
+      console.log('✅ Auto-signin token created, returning URL')
       
-      // Calculate expiration date
-      const expiresAt = session.expires_at
-        ? new Date(session.expires_at * 1000)
-        : new Date(Date.now() + 3600 * 1000) // Default 1 hour
-
-      // Create the token payload (Supabase SSR expects this format)
-      const tokenPayload = {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_at: session.expires_at,
-        expires_in: session.expires_in,
-        token_type: session.token_type,
-        user: session.user,
-      }
-
-      // Set secure HTTP-only cookie (tokens never exposed to client-side JS)
-      response.cookies.set({
-        name: cookieName,
-        value: JSON.stringify(tokenPayload),
-        httpOnly: true, // Prevents JavaScript access
-        secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-        sameSite: 'lax', // CSRF protection
-        path: '/',
-        expires: expiresAt,
-        domain: undefined, // Let browser set domain automatically
-      })
-
-      console.log('✅ Secure cookies set server-side')
-      console.log('   Cookie name:', cookieName)
-      console.log('   Cookie expires:', expiresAt.toISOString())
-      console.log('   Session expires_at:', session.expires_at)
-      console.log('   User ID:', session.user.id)
-      
-      return response
-    } catch (linkErr: any) {
-      console.error('❌ Error creating session after verification:', linkErr)
-      // Fallback: return redirect path
       return NextResponse.json({
         success: true,
         message: 'Email verified successfully',
         redirectPath,
-        requiresSignIn: true,
+        autoSigninUrl, // Client should redirect to this URL for automatic sign-in
       })
     }
+
+    // Fallback: If auto-signin token creation fails, tell client to sign in manually
+    console.warn('⚠️ Auto-signin token creation failed, user will need to sign in manually')
+    return NextResponse.json({
+      success: true,
+      message: 'Email verified successfully',
+      redirectPath,
+      requiresSignIn: true,
+    })
+
   } catch (error: any) {
     console.error('❌ Error in verify-code API:', error)
     return NextResponse.json(

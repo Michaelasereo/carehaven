@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "build:clean": "rm -rf .next && npm run build",
-    "build:optimized": "rm -rf .next/cache .next/standalone .next/trace .next/types && npm run build",
+    "build:optimized": "rm -rf .next && npm run build && rm -rf .next/cache .next/standalone .next/trace .next/types .next/**/*.map .next/**/node_modules",
+    "build:netlify": "npm run build && rm -rf .next/cache .next/standalone .next/trace .next/types .next/**/*.map .next/**/node_modules",
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
@@ -33,7 +34,8 @@
     "deploy:netlify:debug": "NETLIFY_DEBUG=true NETLIFY_LOG_LEVEL=debug npx netlify-cli deploy --prod --debug --timeout=600",
     "deploy:netlify:region-us": "NETLIFY_REGION=us npm run build && NETLIFY_REGION=us npx netlify-cli deploy --prod --timeout=600",
     "deploy:netlify:retry": "npm run build:optimized && NETLIFY_RETRY_COUNT=5 NETLIFY_RETRY_TIMEOUT=300000 NODE_OPTIONS='--max-http-header-size=16384' npx netlify-cli deploy --prod --timeout=300",
-    "deploy:netlify:optimized": "npm run build:optimized && NETLIFY_CDN_UPLOAD_CONCURRENCY=2 NETLIFY_CDN_UPLOAD_TIMEOUT=300 NETLIFY_RETRY_COUNT=3 npx netlify-cli deploy --prod --timeout=300"
+    "deploy:netlify:optimized": "npm run build:optimized && NETLIFY_CDN_UPLOAD_CONCURRENCY=2 NETLIFY_CDN_UPLOAD_TIMEOUT=300 NETLIFY_RETRY_COUNT=3 npx netlify-cli deploy --prod --timeout=300",
+    "deploy:prod": "npx netlify-cli deploy --prod --timeout=600"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.78.0",

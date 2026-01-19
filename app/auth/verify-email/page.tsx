@@ -57,7 +57,7 @@ function VerifyEmailContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, email }),
-        credentials: 'include', // CRITICAL: Include cookies in request/response
+        credentials: 'include',
       })
 
       const result = await response.json()
@@ -73,85 +73,50 @@ function VerifyEmailContent() {
       
       // Check if this is an admin verification
       const isAdmin = searchParams.get('admin') === 'true'
+      const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
       
-      // If session was created successfully (cookies set server-side)
-      if (result.success && result.redirectPath && !result.requiresSignIn) {
-        console.log('✅ Email verified, session cookies set server-side')
-        
-        // Debug: Check cookies before retry
-        if (typeof window !== 'undefined') {
-          console.log('🍪 Current cookies:', document.cookie)
-          
-          // Check debug endpoint to see what cookies server sees
-          try {
-            const debugRes = await fetch('/api/auth/debug-cookies', {
-              credentials: 'include',
-            })
-            const debugData = await debugRes.json()
-            console.log('🍪 Server sees cookies:', debugData)
-          } catch (debugErr) {
-            console.warn('⚠️ Could not check debug cookies:', debugErr)
-          }
-        }
-        
-        // Wait for cookies to propagate and verify session exists
-        // Retry logic to handle timing issues
-        let sessionFound = false
-        for (let attempt = 0; attempt < 5; attempt++) {
-          await new Promise(resolve => setTimeout(resolve, 300)) // Wait 300ms between attempts
-          
-          // Verify session exists (cookies should be available now)
-          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-          
-          if (currentSession && !sessionError) {
-            console.log('✅ Session verified on attempt', attempt + 1)
-            console.log('   Session user:', currentSession.user.id)
-            sessionFound = true
-            
-            // Session is set via cookies, redirect directly to dashboard
-            const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
-            // Use window.location for full page reload to ensure cookies are read
-            window.location.href = redirectPath
-            return
-          }
-          
-          if (sessionError) {
-            console.warn('⚠️ Session error on attempt', attempt + 1, sessionError.message)
-          } else {
-            console.log('⏳ No session yet on attempt', attempt + 1, '- retrying...')
-          }
-        }
-        
-        // If session still not found after retries
-        if (!sessionFound) {
-          console.warn('⚠️ Session not found after verification (after 5 retries), redirecting to login')
-          const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('postVerifyRedirect', redirectPath)
-          }
-          if (isAdmin) {
-            router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
-          } else {
-            router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
-          }
-          return
-        }
+      // If autoSigninUrl is provided, redirect to it for automatic sign-in
+      if (result.autoSigninUrl) {
+        console.log('✅ Email verified, redirecting to auto-signin URL')
+        // Use window.location for full page navigation to ensure proper cookie handling
+        window.location.href = result.autoSigninUrl
+        return
       }
 
-      // Fallback: If requiresSignIn flag is set, redirect to login
+      // Fallback: If requiresSignIn flag is set (auto-signin token creation failed), redirect to login
       if (result.requiresSignIn) {
-        console.warn('⚠️ Session creation failed, redirecting to login with verified flag')
-        const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
+        console.warn('⚠️ Auto-signin not available, redirecting to login with verified flag')
         // Store redirect path in sessionStorage so login can redirect after sign-in
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('postVerifyRedirect', redirectPath)
         }
         if (isAdmin) {
           router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
+        } else if (redirectPath.startsWith('/doctor')) {
+          router.push(`/doctor/login?email=${encodeURIComponent(email || '')}&verified=true`)
         } else {
           router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
         }
         return
+      }
+
+      // If we get here with success but no autoSigninUrl or requiresSignIn, 
+      // try to check if we already have a session (edge case)
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      if (currentSession) {
+        console.log('✅ Session already exists, redirecting to dashboard')
+        window.location.href = redirectPath
+        return
+      }
+
+      // Ultimate fallback: redirect to sign-in
+      console.warn('⚠️ No session or auto-signin URL, redirecting to sign-in')
+      if (isAdmin) {
+        router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
+      } else if (redirectPath.startsWith('/doctor')) {
+        router.push(`/doctor/login?email=${encodeURIComponent(email || '')}&verified=true`)
+      } else {
+        router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
       }
     } catch (error: any) {
       console.error('Error verifying code:', error)

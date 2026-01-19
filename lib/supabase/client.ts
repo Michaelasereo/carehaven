@@ -1,12 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr'
 import type { Session } from '@supabase/supabase-js'
 
-// Singleton client to avoid multiple instances
-let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
+// Singleton client for browser-side only
+let browserClient: ReturnType<typeof createBrowserClient> | null = null
 
 export function createClient() {
-  if (supabaseClient) return supabaseClient
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -14,60 +12,49 @@ export function createClient() {
     throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
   }
 
-  supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true, // Critical for session maintenance
-      detectSessionInUrl: true,
-      flowType: 'pkce', // Use PKCE for better security
-      storage: {
-        getItem: (key: string) => {
-          if (typeof window === 'undefined') return null
-          return window.localStorage.getItem(key)
-        },
-        setItem: (key: string, value: string) => {
-          if (typeof window === 'undefined') return
-          window.localStorage.setItem(key, value)
-        },
-        removeItem: (key: string) => {
-          if (typeof window === 'undefined') return
-          window.localStorage.removeItem(key)
-        },
+  // During SSR/build time (when window is undefined), create a new client each time
+  // This avoids issues with cookies not being available during static generation
+  if (typeof window === 'undefined') {
+    return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false, // Don't persist during SSR
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
-    },
-  })
-
-  // Set up auth state change listener with error handling
-  // Only set up listener on client-side to prevent SSR errors
-  if (typeof window !== 'undefined') {
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id)
-      
-      if (event === 'SIGNED_IN' && session) {
-        // Store session data for debugging
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('supabase.auth.token', session.access_token)
-        }
-      }
-      
-      if (event === 'SIGNED_OUT') {
-        // Clear invalid tokens and auth data on sign out
-        if (typeof window !== 'undefined') {
-          window.localStorage.removeItem('supabase.auth.token')
-          
-          // Clear any stale auth data from localStorage
-          const keys = Object.keys(window.localStorage)
-          keys.forEach(key => {
-            if (key.startsWith('sb-') && (key.includes('auth-token') || key.includes('auth'))) {
-              window.localStorage.removeItem(key)
-            }
-          })
-        }
-      }
     })
   }
 
-  return supabaseClient
+  // On client-side, use singleton pattern for better performance
+  if (browserClient) return browserClient
+
+  // Use default Supabase SSR cookie-based storage
+  // This ensures client and server share the same session via cookies
+  browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      // Note: No custom storage - use default cookie-based storage from @supabase/ssr
+    },
+  })
+
+  // Set up auth state change listener
+  browserClient.auth.onAuthStateChange((event, session) => {
+    console.log('Auth state changed:', event, session?.user?.id)
+    
+    if (event === 'SIGNED_OUT') {
+      // Clear any stale auth data from localStorage (legacy cleanup)
+      const keys = Object.keys(window.localStorage)
+      keys.forEach(key => {
+        if (key.startsWith('sb-') && (key.includes('auth-token') || key.includes('auth'))) {
+          window.localStorage.removeItem(key)
+        }
+      })
+    }
+  })
+
+  return browserClient
 }
 
 // Utility function to check if session is valid

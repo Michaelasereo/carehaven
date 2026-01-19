@@ -1,7 +1,25 @@
 # .netlifyignore - Exclude unnecessary files from Netlify deployment
 # This dramatically reduces upload size and file count
 
-# Cache and build artifacts (never needed in production)
+# ============================================
+# STANDALONE OUTPUT (CRITICAL - Exclude all)
+# ============================================
+# Standalone contains duplicated node_modules - NOT needed for Netlify
+# Netlify uses @netlify/plugin-nextjs which handles SSR automatically
+.next/standalone/**
+.next/standalone
+standalone/**
+
+# ============================================
+# NODE_MODULES (Any location)
+# ============================================
+# Exclude node_modules from anywhere in .next (standalone contains these)
+.next/**/node_modules/**
+.next/standalone/**/node_modules/**
+
+# ============================================
+# CACHE AND BUILD ARTIFACTS
+# ============================================
 .next/cache/**
 .next/trace
 .next/logs
@@ -10,19 +28,38 @@
 .next/types/**
 .next/fallback-build-manifest.json
 
-# Standalone output (huge node_modules duplication - not needed for Netlify)
-.next/standalone/**
-
-# Source maps (optional - remove for smaller deploys)
+# ============================================
+# SOURCE MAPS (Development artifacts)
+# ============================================
 .next/**/*.map
+**/*.map
 
-# Development files
+# ============================================
+# DEVELOPMENT FILES
+# ============================================
 .next/**/*.log
 .next/**/*.tsbuildinfo
 .next/**/.rscinfo
 .next/**/.previewinfo
+.next/**/.next-swc/**
 
-# Keep only essential production files:
+# ============================================
+# TEST FILES
+# ============================================
+__tests__/**
+**/*.test.*
+**/*.spec.*
+jest.config.*
+jest.setup.*
+
+# ============================================
+# DOCUMENTATION (Optional - exclude to reduce size)
+# ============================================
+*.md
+!README.md
+
+# ============================================
+# KEEP ONLY ESSENTIAL PRODUCTION FILES:
 # ✅ .next/server/pages/ (SSR pages)
 # ✅ .next/static/ (static assets)
 # ✅ .next/server/middleware-manifest.json
@@ -34,3 +71,6 @@
 # ✅ .next/server/pages-manifest.json
 # ✅ .next/server/build-manifest.json
 # ✅ .next/server/prerender-manifest.json
+# ✅ .next/server/app/** (App Router pages)
+# ✅ .next/server/chunks/** (Code splitting chunks)
+# ============================================

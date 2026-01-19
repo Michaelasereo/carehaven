@@ -5,22 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Activity, CheckCircle, AlertCircle, XCircle, Database, Server, Users } from 'lucide-react'
 
 export default async function AdminSystemHealthPage() {
+  // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/auth/signin')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
-    redirect('/patient')
-  }
 
   // Check system health
   const healthChecks = {

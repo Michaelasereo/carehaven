@@ -58,6 +58,7 @@ export default async function DashboardLayout({
     )
   } catch (error) {
     console.error('Dashboard layout error:', error)
+    // Try to determine if this is an admin route for better redirect
     redirect('/auth/signin')
   }
 }

@@ -20,22 +20,8 @@ export default async function AdminDoctorsPage({
     page?: string
   }
 }) {
+  // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/admin/login')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
-    redirect('/patient')
-  }
 
   // Get all specialties for filter
   const { data: specialtiesData } = await supabase

@@ -5,22 +5,8 @@ import { ConsultationPriceManager } from '@/components/admin/consultation-price-
 import { ConsultationDurationManager } from '@/components/admin/consultation-duration-manager'
 
 export default async function AdminPricingSettingsPage() {
+  // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/auth/signin')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
-    redirect('/admin/dashboard')
-  }
 
   return (
     <div className="space-y-6">

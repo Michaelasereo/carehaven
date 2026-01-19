@@ -18,22 +18,8 @@ import {
 import { subDays } from 'date-fns'
 
 export default async function AdminDashboard() {
+  // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/admin/login')
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
-    redirect('/patient')
-  }
 
   const timeRange = getTimeRange('30d')
   const previousTimeRange = {

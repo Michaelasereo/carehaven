@@ -13,22 +13,8 @@ export default async function AdminUserDetailPage({
 }: {
   params: { id: string }
 }) {
+  // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
-  const { data: { user: currentUser } } = await supabase.auth.getUser()
-
-  if (!currentUser) {
-    redirect('/auth/signin')
-  }
-
-  const { data: currentProfile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', currentUser.id)
-    .single()
-
-  if (!currentProfile || (currentProfile.role !== 'admin' && currentProfile.role !== 'super_admin')) {
-    redirect('/patient')
-  }
 
   // Fetch user profile
   const { data: profile } = await supabase

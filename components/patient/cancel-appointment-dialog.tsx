@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 
 interface CancelAppointmentDialogProps {
   appointment: any
@@ -25,6 +26,7 @@ export function CancelAppointmentDialog({
 }: CancelAppointmentDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClient()
+  const { addToast } = useToast()
 
   const handleCancel = async () => {
     setIsLoading(true)
@@ -73,7 +75,11 @@ export function CancelAppointmentDialog({
       onClose()
     } catch (error) {
       console.error('Error cancelling appointment:', error)
-      alert('Failed to cancel appointment. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Cancellation Failed',
+        description: 'Failed to cancel appointment. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

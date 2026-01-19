@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useToast } from '@/components/ui/toast'
 
 const soapSchema = z.object({
   presenting_complaint: z.string().optional(),
@@ -34,6 +35,7 @@ interface SOAPFormProps {
 export function SOAPForm({ appointmentId, doctorId, patientId }: SOAPFormProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
 
   const {
@@ -110,7 +112,11 @@ export function SOAPForm({ appointmentId, doctorId, patientId }: SOAPFormProps) 
       router.refresh()
     } catch (error) {
       console.error('Error saving SOAP notes:', error)
-      alert('Failed to save consultation notes. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Failed to save consultation notes. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

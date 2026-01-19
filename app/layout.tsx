@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ReactQueryProvider } from "@/lib/react-query/provider";
+import { ToastProvider } from "@/components/ui/toast";
 
 const dmSans = localFont({
   src: [
@@ -112,7 +113,9 @@ export default function RootLayout({
         className={`${dmSans.variable} ${quintessential.variable} font-sans antialiased`}
       >
         <ReactQueryProvider>
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </ReactQueryProvider>
       </body>
     </html>

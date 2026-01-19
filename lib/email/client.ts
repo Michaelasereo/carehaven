@@ -59,8 +59,19 @@ export async function sendEmail(
       
       // Provide more specific error messages
       if (response.status === 401 || response.status === 403) {
-        errorMessage = 'Invalid Brevo API key. Please check BREVO_API_KEY environment variable.'
-        errorDetails.suggestion = 'Verify BREVO_API_KEY is set correctly in Netlify environment variables'
+        // Try to parse the error to get more details
+        try {
+          const errorJson = JSON.parse(errorText)
+          if (errorJson.message) {
+            errorMessage = `Brevo API authentication error: ${errorJson.message}`
+          } else {
+            errorMessage = 'Invalid Brevo API key. Please check BREVO_API_KEY environment variable.'
+          }
+          errorDetails.brevoError = errorJson
+        } catch {
+          errorMessage = `Invalid Brevo API key (HTTP ${response.status}). Please check BREVO_API_KEY environment variable.`
+        }
+        errorDetails.suggestion = 'Verify BREVO_API_KEY is set correctly in Netlify environment variables. Get your API key from: https://app.brevo.com/settings/keys/api'
       } else if (response.status === 400) {
         // Parse error if it's JSON
         try {

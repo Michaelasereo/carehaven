@@ -199,7 +199,8 @@ function VerifyEmailContent() {
 
       // Show success message
       setError(null)
-      alert('Verification code sent! Please check your email.')
+      // Note: Toast notifications would require ToastProvider in this layout
+      // For now, show inline success message
       setResending(false)
     } catch (error: any) {
       console.error('Error resending code:', error)

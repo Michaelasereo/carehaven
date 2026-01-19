@@ -88,11 +88,25 @@ export async function GET(request: Request) {
         timestamp: new Date().toISOString(),
       })
     } catch (emailError: any) {
+      // Extract more detailed error information
+      const errorInfo: any = {
+        message: emailError.message,
+        stack: emailError.stack,
+      }
+      
+      // If the error message contains specific Brevo errors, include them
+      if (emailError.message?.includes('Brevo API')) {
+        errorInfo.brevoError = true
+        errorInfo.suggestion = emailError.message.includes('sender') || emailError.message.includes('unverified')
+          ? 'Verify sender email in Brevo Dashboard: https://app.brevo.com/settings/senders'
+          : 'Check your BREVO_API_KEY in Netlify environment variables: https://app.brevo.com/settings/keys/api'
+      }
+      
       return NextResponse.json({
         status: 'ERROR',
         error: 'Failed to send test email',
         errorMessage: emailError.message,
-        errorDetails: emailError.stack,
+        errorDetails: errorInfo,
         config,
         timestamp: new Date().toISOString(),
       }, { status: 500 })

@@ -6,6 +6,7 @@ import { Video } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { isWithinJoinWindow } from '@/lib/utils/timezone'
+import { useToast } from '@/components/ui/toast'
 
 interface JoinConsultationButtonProps {
   appointmentId: string
@@ -14,6 +15,7 @@ interface JoinConsultationButtonProps {
 export function JoinConsultationButton({ appointmentId }: JoinConsultationButtonProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [canJoin, setCanJoin] = useState(false)
   const [scheduledAt, setScheduledAt] = useState<string | null>(null)
@@ -114,7 +116,7 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
         const tokenResponse = await fetch('/api/daily/get-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomName: room.name }),
+          body: JSON.stringify({ roomName: room.name, appointmentId }),
         })
 
         const { token } = await tokenResponse.json()
@@ -124,7 +126,7 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
         const tokenResponse = await fetch('/api/daily/get-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomName: appointment.daily_room_name }),
+          body: JSON.stringify({ roomName: appointment.daily_room_name, appointmentId }),
         })
 
         if (!tokenResponse.ok) throw new Error('Failed to get token')
@@ -145,7 +147,11 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
       }
     } catch (error) {
       console.error('Error joining consultation:', error)
-      alert('Failed to join consultation. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Failed to Join',
+        description: 'Failed to join consultation. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

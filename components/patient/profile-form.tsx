@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Camera, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 const profileSchema = z.object({
   full_name: z.string().min(2),
@@ -30,6 +31,7 @@ interface ProfileFormProps {
 export function ProfileForm({ profile }: ProfileFormProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
@@ -89,7 +91,11 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       router.refresh()
     } catch (error: any) {
       console.error('Error uploading photo:', error)
-      alert(error.message || 'Failed to upload photo. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Upload Failed',
+        description: error.message || 'Failed to upload photo. Please try again.',
+      })
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -100,13 +106,21 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        addToast({
+          variant: 'destructive',
+          title: 'Invalid File',
+          description: 'Please select an image file',
+        })
         return
       }
       
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size must be less than 5MB')
+        addToast({
+          variant: 'destructive',
+          title: 'File Too Large',
+          description: 'Image size must be less than 5MB',
+        })
         return
       }
 

@@ -9,15 +9,18 @@
   # This helps prevent timeouts during extension fetch
   timeout = 600
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-  # Plugin configuration to handle extension fetch failures
-  # If extension fetch fails, plugin will continue with default behavior
+# Temporarily disabled to bypass extensions fetch issue
+# [[plugins]]
+#   package = "@netlify/plugin-nextjs"
+#   # Plugin configuration to handle extension fetch failures
+#   # If extension fetch fails, plugin will continue with default behavior
 
 # Next.js configuration
 [build.environment]
   NODE_VERSION = "20"
   NEXT_TELEMETRY_DISABLED = "1"
+  # Disable SDK metadata fetching to avoid network timeout issues
+  NETLIFY_SDK_METADATA_URL = ""
   # Control plugin behavior (set to "false" to disable plugins if needed)
   # NETLIFY_USE_PLUGINS = "true"
   # Required environment variables (set in Netlify dashboard):

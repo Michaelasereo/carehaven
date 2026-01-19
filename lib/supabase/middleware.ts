@@ -48,7 +48,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:45',message:'Middleware auth check',data:{path:request.nextUrl.pathname,hasUser:!!user,userId:user?.id,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+  if (process.env.NODE_ENV === 'development') {
+    fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:45',message:'Middleware auth check',data:{path:request.nextUrl.pathname,hasUser:!!user,userId:user?.id,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+  }
   // #endregion
 
   // Log for debugging
@@ -75,7 +77,9 @@ export async function updateSession(request: NextRequest) {
   // If user is not signed in and the current path is not public or auth route
   if (!user && !isPublicRoute && !isAuthRoute && !isAuthApiRoute) {
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:72',message:'Middleware redirecting unauthenticated user',data:{path:request.nextUrl.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+    if (process.env.NODE_ENV === 'development') {
+      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:72',message:'Middleware redirecting unauthenticated user',data:{path:request.nextUrl.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+    }
     // #endregion
     const url = new URL('/auth/signin', request.url)
     url.searchParams.set('redirect', request.nextUrl.pathname)
@@ -85,7 +89,9 @@ export async function updateSession(request: NextRequest) {
   // If user is signed in and trying to access auth routes
   if (user && isAuthRoute && request.nextUrl.pathname !== '/auth/callback') {
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:79',message:'Middleware checking profile for authenticated user on auth route',data:{path:request.nextUrl.pathname,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+    if (process.env.NODE_ENV === 'development') {
+      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:79',message:'Middleware checking profile for authenticated user on auth route',data:{path:request.nextUrl.pathname,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+    }
     // #endregion
     // Get user role and redirect to appropriate dashboard
     const { data: profile } = await supabase
@@ -96,7 +102,9 @@ export async function updateSession(request: NextRequest) {
 
     if (!profile?.profile_completed) {
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:87',message:'Middleware redirecting to complete-profile',data:{profileCompleted:profile?.profile_completed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+      if (process.env.NODE_ENV === 'development') {
+        fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:87',message:'Middleware redirecting to complete-profile',data:{profileCompleted:profile?.profile_completed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+      }
       // #endregion
       return NextResponse.redirect(new URL('/complete-profile', request.url))
     }
@@ -107,7 +115,9 @@ export async function updateSession(request: NextRequest) {
     if (profile.role === 'super_admin') redirectPath = '/admin/dashboard'
 
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:96',message:'Middleware redirecting authenticated user from auth route',data:{redirectPath,role:profile.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+    if (process.env.NODE_ENV === 'development') {
+      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:96',message:'Middleware redirecting authenticated user from auth route',data:{redirectPath,role:profile.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
+    }
     // #endregion
     return NextResponse.redirect(new URL(redirectPath, request.url))
   }

@@ -26,6 +26,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isTimeAvailable, getAvailableTimeSlots, type AvailabilitySlot } from '@/lib/utils/availability'
 import { useQuery } from '@tanstack/react-query'
 import { getConsultationDurationClient } from '@/lib/admin/system-settings-client'
+import { useToast } from '@/components/ui/toast'
 
 const appointmentSchema = z.object({
   chief_complaint: z.string().min(5, 'Reason must be at least 5 characters'),
@@ -41,6 +42,7 @@ export function BookAppointmentForm() {
   const router = useRouter()
   const supabase = createClient()
   const createAppointment = useCreateAppointment()
+  const { addToast } = useToast()
   
   const [step, setStep] = useState(1)
   const [selectedDoctor, setSelectedDoctor] = useState<{
@@ -70,24 +72,53 @@ export function BookAppointmentForm() {
     fetchDuration()
 
     // Subscribe to real-time duration changes
-    const channel = supabase
-      .channel('system-settings-duration-booking')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'system_settings',
-        },
-        async () => {
-          const newDuration = await getConsultationDurationClient()
-          setConsultationDuration(newDuration)
-        }
-      )
-      .subscribe()
+    let reconnectTimeoutId: NodeJS.Timeout
+    let isSubscribed = false
+
+    const setupSubscription = () => {
+      const channel = supabase
+        .channel('system-settings-duration-booking')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'system_settings',
+          },
+          async () => {
+            try {
+              const newDuration = await getConsultationDurationClient()
+              setConsultationDuration(newDuration)
+            } catch (error) {
+              console.error('Error fetching consultation duration:', error)
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            isSubscribed = true
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('Realtime subscription error for consultation duration:', status)
+            isSubscribed = false
+            // Attempt reconnection after 5 seconds
+            reconnectTimeoutId = setTimeout(() => {
+              if (!isSubscribed) {
+                setupSubscription()
+              }
+            }, 5000)
+          }
+        })
+
+      return channel
+    }
+
+    const channel = setupSubscription()
 
     return () => {
-      supabase.removeChannel(channel)
+      clearTimeout(reconnectTimeoutId)
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
     }
   }, [supabase])
 
@@ -328,9 +359,14 @@ export function BookAppointmentForm() {
       } else {
         throw new Error('Failed to initialize payment')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error booking appointment:', error)
-      alert('Failed to book appointment. Please try again.')
+      const errorMessage = error?.message || 'Failed to book appointment. Please try again.'
+      addToast({
+        variant: 'destructive',
+        title: 'Booking Failed',
+        description: errorMessage,
+      })
       setIsProcessingPayment(false)
     }
   }

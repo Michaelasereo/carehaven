@@ -2,19 +2,24 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 
 export function useCreateAppointment() {
-  const supabase = createClient()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (appointmentData: any) => {
-      const { data, error } = await supabase
-        .from('appointments')
-        .insert(appointmentData)
-        .select()
-        .single()
+      const response = await fetch('/api/appointments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(appointmentData),
+      })
 
-      if (error) throw error
-      return data
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create appointment')
+      }
+
+      return result.appointment
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] })

@@ -36,7 +36,7 @@ export default function ConsultationPage({ params }: { params: { id: string } })
           const tokenResponse = await fetch('/api/daily/get-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomName: appointment.daily_room_name }),
+            body: JSON.stringify({ roomName: appointment.daily_room_name, appointmentId: params.id }),
           })
 
           if (tokenResponse.ok) {

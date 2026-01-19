@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button'
 import { Bell, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 export default function NotificationsSettingsPage() {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -66,10 +68,18 @@ export default function NotificationsSettingsPage() {
 
       if (error) throw error
 
-      alert('Notification preferences saved successfully!')
+      addToast({
+        variant: 'success',
+        title: 'Success',
+        description: 'Notification preferences saved successfully!',
+      })
     } catch (error) {
       console.error('Error saving preferences:', error)
-      alert('Failed to save preferences. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Failed to save preferences. Please try again.',
+      })
     } finally {
       setSaving(false)
     }

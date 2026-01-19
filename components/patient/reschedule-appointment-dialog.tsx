@@ -18,6 +18,7 @@ import {
 import { useUpdateAppointment } from '@/lib/react-query/mutations'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 
 const rescheduleSchema = z.object({
   scheduled_at: z.string().min(1, 'Please select a new date and time'),
@@ -38,6 +39,7 @@ export function RescheduleAppointmentDialog({
 }: RescheduleAppointmentDialogProps) {
   const updateAppointment = useUpdateAppointment()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('09:00')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -66,7 +68,11 @@ export function RescheduleAppointmentDialog({
 
       // Validate new date is in the future
       if (new Date(scheduledAt) <= new Date()) {
-        alert('Please select a future date and time')
+        addToast({
+          variant: 'destructive',
+          title: 'Invalid Date',
+          description: 'Please select a future date and time',
+        })
         setIsSubmitting(false)
         return
       }
@@ -98,7 +104,11 @@ export function RescheduleAppointmentDialog({
       onClose()
     } catch (error) {
       console.error('Error rescheduling appointment:', error)
-      alert('Failed to reschedule appointment. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Reschedule Failed',
+        description: 'Failed to reschedule appointment. Please try again.',
+      })
     } finally {
       setIsSubmitting(false)
     }

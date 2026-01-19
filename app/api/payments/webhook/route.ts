@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       // Find appointment by payment reference
       const { data: appointment, error: appointmentError } = await supabase
         .from('appointments')
-        .select('id, doctor_id, patient_id, scheduled_at, chief_complaint, symptoms_description, status, payment_status')
+        .select('id, doctor_id, patient_id, scheduled_at, chief_complaint, symptoms_description, status, payment_status, amount')
         .eq('paystack_reference', reference)
         .single()
 
@@ -106,6 +106,17 @@ export async function POST(request: Request) {
       if (appointment.payment_status === 'paid' && appointment.status === 'confirmed') {
         console.log(`✅ Appointment ${appointment.id} already confirmed, skipping`)
         return NextResponse.json({ received: true, message: 'Already processed' }, { status: 200 })
+      }
+
+      // Validate payment amount matches appointment amount
+      const paymentAmount = data.amount // Amount in kobo from Paystack
+      const appointmentAmount = Math.round((Number(appointment.amount) || 0) * 100) // Convert to kobo
+
+      if (paymentAmount !== appointmentAmount) {
+        console.error(`❌ Payment amount mismatch for appointment ${appointment.id}: expected ${appointmentAmount}, got ${paymentAmount}`)
+        // Return 200 to acknowledge but log the error
+        // This prevents Paystack from retrying, but we've logged the issue
+        return NextResponse.json({ received: true, error: 'Amount mismatch' }, { status: 200 })
       }
 
       // Update appointment status to paid and confirmed

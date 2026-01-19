@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select'
 import { Camera, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 const doctorProfileSchema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
@@ -42,6 +43,7 @@ interface DoctorProfileFormProps {
 export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
@@ -107,7 +109,11 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
       router.refresh()
     } catch (error: any) {
       console.error('Error uploading photo:', error)
-      alert(error.message || 'Failed to upload photo. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Upload Failed',
+        description: error.message || 'Failed to upload photo. Please try again.',
+      })
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -118,13 +124,21 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        addToast({
+          variant: 'destructive',
+          title: 'Invalid File',
+          description: 'Please select an image file',
+        })
         return
       }
       
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size must be less than 5MB')
+        addToast({
+          variant: 'destructive',
+          title: 'File Too Large',
+          description: 'Image size must be less than 5MB',
+        })
         return
       }
 
@@ -168,10 +182,18 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
       if (error) throw error
 
       router.refresh()
-      alert('Profile updated successfully!')
+      addToast({
+        variant: 'success',
+        title: 'Success',
+        description: 'Profile updated successfully!',
+      })
     } catch (error: any) {
       console.error('Error updating profile:', error)
-      alert(error.message || 'Failed to update profile. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update profile. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

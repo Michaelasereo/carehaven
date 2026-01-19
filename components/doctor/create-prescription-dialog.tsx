@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 interface CreatePrescriptionDialogProps {
   appointmentId: string
@@ -29,6 +30,7 @@ export function CreatePrescriptionDialog({
 }: CreatePrescriptionDialogProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [medications, setMedications] = useState([{ name: '', dosage: '', frequency: '', duration: '' }])
   const [instructions, setInstructions] = useState('')
@@ -70,7 +72,11 @@ export function CreatePrescriptionDialog({
       const validMedications = medications.filter(m => m.name.trim() !== '')
 
       if (validMedications.length === 0) {
-        alert('Please add at least one medication')
+        addToast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please add at least one medication',
+        })
         return
       }
 
@@ -121,7 +127,11 @@ export function CreatePrescriptionDialog({
       onSuccess()
     } catch (error) {
       console.error('Error creating prescription:', error)
-      alert('Failed to create prescription. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Creation Failed',
+        description: 'Failed to create prescription. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

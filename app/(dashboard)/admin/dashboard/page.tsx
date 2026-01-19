@@ -28,6 +28,9 @@ export default async function AdminDashboard() {
   }
 
   // Fetch current period statistics
+  // Note: Using count queries with head:true is optimized for large datasets
+  // All queries run in parallel for better performance
+  // For very large datasets (>100k records), consider adding caching or date range limits
   const [
     { count: totalPatients },
     { count: totalDoctors },

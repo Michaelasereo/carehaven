@@ -17,10 +17,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { useToast } from '@/components/ui/toast'
 
 export default function DoctorAccountSettingsPage() {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
@@ -33,7 +35,11 @@ export default function DoctorAccountSettingsPage() {
       router.push('/auth/signin')
     } catch (error) {
       console.error('Error signing out:', error)
-      alert('Failed to sign out. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Sign Out Failed',
+        description: 'Failed to sign out. Please try again.',
+      })
     } finally {
       setLoading(false)
     }
@@ -41,7 +47,11 @@ export default function DoctorAccountSettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (confirmText !== 'DELETE') {
-      alert('Please type DELETE to confirm')
+      addToast({
+        variant: 'destructive',
+        title: 'Confirmation Required',
+        description: 'Please type DELETE to confirm',
+      })
       return
     }
 
@@ -61,7 +71,11 @@ export default function DoctorAccountSettingsPage() {
       router.push('/auth/signin')
     } catch (error) {
       console.error('Error deleting account:', error)
-      alert('Failed to delete account. Please contact support.')
+      addToast({
+        variant: 'destructive',
+        title: 'Deletion Failed',
+        description: 'Failed to delete account. Please contact support.',
+      })
     } finally {
       setDeleting(false)
       setDeleteDialogOpen(false)

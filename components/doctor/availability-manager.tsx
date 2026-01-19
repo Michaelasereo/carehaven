@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { createClient } from '@/lib/supabase/client'
 import { Trash2, Plus, Save } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 interface AvailabilitySlot {
   id?: string
@@ -28,6 +29,7 @@ const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 export function AvailabilityManager({ doctorId, initialAvailability }: AvailabilityManagerProps) {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   
   // Group availability by day
@@ -145,10 +147,18 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
       }
 
       router.refresh()
-      alert('Availability saved successfully!')
+      addToast({
+        variant: 'success',
+        title: 'Success',
+        description: 'Availability saved successfully!',
+      })
     } catch (error) {
       console.error('Error saving availability:', error)
-      alert('Failed to save availability. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Failed to save availability. Please try again.',
+      })
     } finally {
       setIsSaving(false)
     }

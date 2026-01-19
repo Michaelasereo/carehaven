@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/ui/toast'
 
 interface RequestInvestigationDialogProps {
   appointmentId: string
@@ -27,6 +28,7 @@ export function RequestInvestigationDialog({
   onSuccess,
 }: RequestInvestigationDialogProps) {
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [testName, setTestName] = useState('')
   const [testType, setTestType] = useState('')
@@ -49,7 +51,12 @@ export function RequestInvestigationDialog({
       if (!appointment) throw new Error('Appointment not found')
 
       if (!testName.trim()) {
-        alert('Please enter a test name')
+        addToast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please enter a test name',
+        })
+        setIsLoading(false)
         return
       }
 
@@ -97,7 +104,11 @@ export function RequestInvestigationDialog({
       onSuccess()
     } catch (error) {
       console.error('Error requesting investigation:', error)
-      alert('Failed to request investigation. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Request Failed',
+        description: 'Failed to request investigation. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

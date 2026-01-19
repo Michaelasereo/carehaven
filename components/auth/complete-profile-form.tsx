@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useToast } from '@/components/ui/toast'
 
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -29,6 +30,7 @@ type ProfileFormData = z.infer<typeof profileSchema>
 export function CompleteProfileForm() {
   const router = useRouter()
   const supabase = createClient()
+  const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
 
   const {
@@ -65,7 +67,12 @@ export function CompleteProfileForm() {
 
       if (error) {
         console.error('Error updating profile:', error)
-        alert('Failed to update profile. Please try again.')
+        addToast({
+          variant: 'destructive',
+          title: 'Update Failed',
+          description: 'Failed to update profile. Please try again.',
+        })
+        setIsLoading(false)
         return
       }
 

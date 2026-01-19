@@ -8,13 +8,15 @@ import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAp
 /**
  * Payment Callback Handler
  * 
- * ⚠️ TECH DEBT: This uses GET with query params, which is vulnerable to replay attacks.
- * In production, you MUST:
- * 1. Verify Paystack webhook signature
- * 2. Use POST endpoint with webhook verification
- * 3. Add idempotency checks to prevent duplicate processing
+ * This endpoint handles user redirects from Paystack after payment.
  * 
- * For MVP, this is acceptable but document the security risk.
+ * Security measures:
+ * - Idempotency check: Prevents duplicate processing if callback is called multiple times
+ * - Amount validation: Verifies payment amount matches appointment amount
+ * - Primary verification: Webhook handler (/api/payments/webhook) is the authoritative source
+ * 
+ * Note: This callback is for user experience (immediate redirect). The webhook handler
+ * is the primary verification mechanism and should handle most payment confirmations.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
     // Find appointment by payment reference
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
-      .select('id, doctor_id, patient_id, scheduled_at, chief_complaint, symptoms_description')
+      .select('id, doctor_id, patient_id, scheduled_at, chief_complaint, symptoms_description, amount, payment_status, status')
       .eq('paystack_reference', reference)
       .single()
 
@@ -51,6 +53,25 @@ export async function GET(request: Request) {
       console.error('Appointment not found for reference:', reference)
       return NextResponse.redirect(
         new URL('/patient/appointments?error=appointment_not_found', request.url)
+      )
+    }
+
+    // Idempotency check: If already processed, redirect to success
+    if (appointment.payment_status === 'paid' && appointment.status === 'confirmed') {
+      console.log(`✅ Appointment ${appointment.id} already confirmed, redirecting to success`)
+      return NextResponse.redirect(
+        new URL(`/patient/appointments?success=payment_complete&appointment_id=${appointment.id}`, request.url)
+      )
+    }
+
+    // Validate payment amount matches appointment amount
+    const paymentAmount = payment.data.amount // Amount in kobo from Paystack
+    const appointmentAmount = Math.round((Number(appointment.amount) || 0) * 100) // Convert to kobo
+
+    if (paymentAmount !== appointmentAmount) {
+      console.error(`❌ Payment amount mismatch: expected ${appointmentAmount}, got ${paymentAmount}`)
+      return NextResponse.redirect(
+        new URL('/patient/appointments?error=payment_amount_mismatch', request.url)
       )
     }
 

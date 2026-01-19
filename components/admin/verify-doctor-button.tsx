@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 interface VerifyDoctorButtonProps {
   doctorId: string
@@ -24,6 +25,7 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
   const [userRole, setUserRole] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
+  const { addToast } = useToast()
 
   useEffect(() => {
     // Fetch user role
@@ -85,7 +87,11 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
       setShowDialog(false)
     } catch (error) {
       console.error('Error verifying doctor:', error)
-      alert('Failed to verify doctor. Please try again.')
+      addToast({
+        variant: 'destructive',
+        title: 'Verification Failed',
+        description: 'Failed to verify doctor. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }

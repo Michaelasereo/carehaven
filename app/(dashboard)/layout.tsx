@@ -5,6 +5,9 @@ import { DoctorSidebar } from '@/components/dashboard/doctor-sidebar'
 import { AdminSidebar } from '@/components/dashboard/admin-sidebar'
 import { Header } from '@/components/dashboard/header'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({
   children,
 }: {

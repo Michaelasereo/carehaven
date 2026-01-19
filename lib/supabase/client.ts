@@ -4,6 +4,46 @@ import type { Session } from '@supabase/supabase-js'
 // Singleton client for browser-side only
 let browserClient: ReturnType<typeof createBrowserClient> | null = null
 
+// Helper to parse cookies safely
+function getCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  try {
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) {
+      return parts.pop()?.split(';').shift()
+    }
+  } catch (e) {
+    console.warn('Cookie get error:', e)
+  }
+  return undefined
+}
+
+// Helper to set cookies safely
+function setCookie(name: string, value: string, options?: { path?: string; maxAge?: number; sameSite?: string; secure?: boolean }) {
+  if (typeof document === 'undefined') return
+  try {
+    let cookieStr = `${name}=${value}`
+    if (options?.path) cookieStr += `; path=${options.path}`
+    if (options?.maxAge) cookieStr += `; max-age=${options.maxAge}`
+    if (options?.sameSite) cookieStr += `; samesite=${options.sameSite}`
+    if (options?.secure) cookieStr += `; secure`
+    document.cookie = cookieStr
+  } catch (e) {
+    console.warn('Cookie set error:', e)
+  }
+}
+
+// Helper to remove cookies safely
+function removeCookie(name: string, options?: { path?: string }) {
+  if (typeof document === 'undefined') return
+  try {
+    document.cookie = `${name}=; path=${options?.path || '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+  } catch (e) {
+    console.warn('Cookie remove error:', e)
+  }
+}
+
 export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -27,15 +67,24 @@ export function createClient() {
   // On client-side, use singleton pattern for better performance
   if (browserClient) return browserClient
 
-  // Use default Supabase SSR cookie-based storage
-  // This ensures client and server share the same session via cookies
+  // Create client with explicit cookie handling to avoid undefined storage errors
   browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return getCookie(name)
+      },
+      set(name: string, value: string, options: { path?: string; maxAge?: number; sameSite?: string; secure?: boolean }) {
+        setCookie(name, value, options)
+      },
+      remove(name: string, options: { path?: string }) {
+        removeCookie(name, options)
+      },
+    },
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce',
-      // Note: No custom storage - use default cookie-based storage from @supabase/ssr
     },
   })
 

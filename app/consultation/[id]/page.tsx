@@ -1,15 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams, useRouter, useParams } from 'next/navigation'
 import { CallInterface } from '@/components/video/call-interface'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 
-export default function ConsultationPage({ params }: { params: { id: string } }) {
+export default function ConsultationPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { id } = useParams<{ id: string }>()
   const supabase = createClient()
   const [roomUrl, setRoomUrl] = useState<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -29,14 +30,14 @@ export default function ConsultationPage({ params }: { params: { id: string } })
         const { data: appointment } = await supabase
           .from('appointments')
           .select('daily_room_name, daily_room_url')
-          .eq('id', params.id)
+          .eq('id', id)
           .single()
 
         if (appointment?.daily_room_name) {
           const tokenResponse = await fetch('/api/daily/get-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomName: appointment.daily_room_name, appointmentId: params.id }),
+            body: JSON.stringify({ roomName: appointment.daily_room_name, appointmentId: id }),
           })
 
           if (tokenResponse.ok) {
@@ -52,7 +53,7 @@ export default function ConsultationPage({ params }: { params: { id: string } })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleLeave = async () => {
+  const handleLeave = useCallback(async () => {
     // Get user role to determine redirect
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -67,26 +68,26 @@ export default function ConsultationPage({ params }: { params: { id: string } })
       const { data: appointment } = await supabase
         .from('appointments')
         .select('status')
-        .eq('id', params.id)
+        .eq('id', id)
         .single()
 
       if (appointment?.status === 'in_progress') {
         await supabase
           .from('appointments')
           .update({ status: 'completed' })
-          .eq('id', params.id)
+          .eq('id', id)
       }
 
       // Redirect based on role
       if (profile?.role === 'doctor') {
-        router.push(`/doctor/appointments/${params.id}`)
+        router.push(`/doctor/appointments/${id}`)
       } else {
         router.push('/patient/appointments')
       }
     } else {
       router.push('/auth/signin')
     }
-  }
+  }, [id, router, supabase])
 
   if (isLoading) {
     return (

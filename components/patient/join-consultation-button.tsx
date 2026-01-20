@@ -98,7 +98,16 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
           body: JSON.stringify({ appointmentId }),
         })
 
-        if (!response.ok) throw new Error('Failed to create room')
+        if (!response.ok) {
+          let errorMessage = 'Failed to create room'
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorMessage
+          } catch {
+            // Use default message if parsing fails
+          }
+          throw new Error(errorMessage)
+        }
 
         const { room } = await response.json()
 
@@ -145,12 +154,13 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
           `/consultation/${appointmentId}?token=${token}&roomUrl=${encodeURIComponent(appointment.daily_room_url || '')}`
         )
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error joining consultation:', error)
+      const errorMessage = error?.message || 'Failed to join consultation. Please try again.'
       addToast({
         variant: 'destructive',
         title: 'Failed to Join',
-        description: 'Failed to join consultation. Please try again.',
+        description: errorMessage,
       })
     } finally {
       setIsLoading(false)

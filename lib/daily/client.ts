@@ -6,6 +6,11 @@ const DAILY_API_BASE = 'https://api.daily.co/v1'
 
 export async function createRoom(appointmentId: string, durationMinutes?: number) {
   try {
+    // Validate API key
+    if (!API_KEY) {
+      throw new Error('DAILY_CO_API_KEY is not configured')
+    }
+
     // Calculate expiry: duration * 120 seconds (duration * 2 minutes) for safety
     // Or use default 2 hours (7200 seconds) if duration not provided
     const expirySeconds = durationMinutes 
@@ -21,21 +26,38 @@ export async function createRoom(appointmentId: string, durationMinutes?: number
       body: JSON.stringify({
         name: `appointment-${appointmentId}`,
         privacy: 'private',
-        config: {
-          enable_recording: 'cloud',
+        // Daily REST API expects room settings under `properties`
+        // (Using `config` / `hipaa_compliant` here can trigger invalid-request-error.)
+        properties: {
+          exp: expirySeconds,
           enable_chat: true,
           enable_screenshare: true,
-          hipaa_compliant: true,
-          exp: expirySeconds,
         },
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`Daily.co API error: ${response.statusText}`)
+      // Try to get error details from response body
+      let errorMessage = `Daily.co API error: ${response.status} ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        if (errorData?.error || errorData?.message) {
+          errorMessage = `Daily.co API error: ${errorData.error || errorData.message}`
+        }
+      } catch {
+        // If parsing fails, use the status text
+      }
+      throw new Error(errorMessage)
     }
 
-    return await response.json()
+    const room = await response.json()
+    
+    // Validate room response
+    if (!room || !room.name || !room.url) {
+      throw new Error('Invalid room response from Daily.co API')
+    }
+
+    return room
   } catch (error) {
     console.error('Error creating Daily.co room:', error)
     throw error

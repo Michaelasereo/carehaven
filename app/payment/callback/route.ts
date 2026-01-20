@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { verifyPayment } from '@/lib/paystack/client'
 import { createRoom } from '@/lib/daily/client'
 import { getConsultationDuration } from '@/lib/admin/system-settings'
-import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail } from '@/lib/notifications/triggers'
+import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail, formatDoctorName } from '@/lib/notifications/triggers'
 
 /**
  * Payment Callback Handler
@@ -140,7 +140,7 @@ export async function GET(request: Request) {
       await notifyAppointmentConfirmed(
         appointment.patient_id,
         appointment.id,
-        doctor?.full_name || 'Dr. Unknown',
+        formatDoctorName(doctor?.full_name || 'Unknown'),
         new Date(appointment.scheduled_at)
       )
 

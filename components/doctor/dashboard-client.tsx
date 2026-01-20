@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, Bell, Pill, TestTube, Video } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { JoinConsultationButton } from './join-consultation-button'
 
 interface DoctorDashboardClientProps {
   doctorId: string
@@ -31,7 +32,7 @@ export function DoctorDashboardClient({
         .from('appointments')
         .select('*, profiles!appointments_patient_id_fkey(full_name)')
         .eq('doctor_id', doctorId)
-        .in('status', ['scheduled', 'confirmed'])
+        .in('status', ['scheduled', 'confirmed', 'in_progress'])
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
         .limit(3)
@@ -161,17 +162,19 @@ export function DoctorDashboardClient({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={apt.status === 'confirmed' ? 'default' : 'secondary'}>
+                    <Badge variant={apt.status === 'confirmed' || apt.status === 'in_progress' ? 'default' : 'secondary'}>
                       {apt.status}
                     </Badge>
-                    {canJoin && (
-                      <Link href={`/doctor/appointments/${apt.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Video className="h-4 w-4 mr-1" />
-                          Join
-                        </Button>
-                      </Link>
-                    )}
+                    {canJoin ? (
+                      <div className="flex items-center gap-2">
+                        <JoinConsultationButton appointmentId={apt.id} />
+                        <Link href={`/doctor/appointments/${apt.id}`}>
+                          <Button variant="ghost" size="sm" title="View Details">
+                            <Video className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )

@@ -6,7 +6,7 @@ import { ClientListTable } from './client-list-table'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 
 interface Client {
   id: string
@@ -61,6 +61,10 @@ export function ClientListClient({
     router.push(`/doctor/sessions?${newParams.toString()}`)
   }
 
+  const handleRefresh = () => {
+    router.refresh()
+  }
+
   if (clients.length === 0) {
     return (
       <Card className="p-12 text-center">
@@ -84,6 +88,14 @@ export function ClientListClient({
             />
           </div>
           <Button type="submit">Search</Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleRefresh}
+            title="Refresh client list"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </form>
       </Card>
 

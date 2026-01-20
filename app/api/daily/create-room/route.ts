@@ -27,6 +27,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'appointmentId is required' }, { status: 400 })
     }
 
+    // Fetch and validate appointment
+    const { data: appointment, error: appointmentError } = await supabase
+      .from('appointments')
+      .select('id, status, payment_status, patient_id, doctor_id, daily_room_name')
+      .eq('id', appointmentId)
+      .single()
+
+    if (appointmentError || !appointment) {
+      return NextResponse.json(
+        { error: 'Appointment not found' },
+        { status: 404 }
+      )
+    }
+
+    // Verify user has access to this appointment
+    if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized: You do not have access to this appointment' },
+        { status: 403 }
+      )
+    }
+
+    // Check if room already exists
+    if (appointment.daily_room_name) {
+      return NextResponse.json(
+        { error: 'Room already exists for this appointment', details: 'A consultation room has already been created for this appointment.' },
+        { status: 409 }
+      )
+    }
+
+    // Validate appointment status - must be confirmed or in_progress
+    if (appointment.status !== 'confirmed' && appointment.status !== 'in_progress') {
+      return NextResponse.json(
+        { 
+          error: `Cannot create room for appointment with status '${appointment.status}'`,
+          details: `Only confirmed or in-progress appointments can have consultation rooms. Current status: ${appointment.status}`
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate payment status - must be paid
+    if (appointment.payment_status !== 'paid') {
+      return NextResponse.json(
+        { 
+          error: 'Payment is required before creating consultation room',
+          details: `Payment status is '${appointment.payment_status}'. The appointment must be paid before a consultation room can be created.`
+        },
+        { status: 402 }
+      )
+    }
+
     // Validate Daily.co API key
     if (!process.env.DAILY_CO_API_KEY) {
       console.error('DAILY_CO_API_KEY is not set')

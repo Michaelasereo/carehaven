@@ -18,6 +18,14 @@ interface MetricsCardProps {
   }
   realtimeTable?: 'profiles' | 'appointments'
   realtimeFilter?: Record<string, any>
+  realtimeQueryType?: 'count' | 'sum' | 'unique'
+  realtimeQueryConfig?: {
+    sumField?: string
+    uniqueField?: string
+    dateRange?: { start: string; end: string }
+    statusFilter?: string[]
+    dateFilter?: { gte?: string; lte?: string }
+  }
 }
 
 export function MetricsCard({
@@ -29,9 +37,17 @@ export function MetricsCard({
   trend,
   realtimeTable,
   realtimeFilter,
+  realtimeQueryType = 'count',
+  realtimeQueryConfig,
 }: MetricsCardProps) {
   const [value, setValue] = useState(initialValue)
   const supabase = createClient()
+
+  // Sync value when initialValue changes from server
+  // Always trust the server-rendered value - it's authoritative
+  useEffect(() => {
+    setValue(initialValue)
+  }, [initialValue])
 
   useEffect(() => {
     if (!realtimeTable) return
@@ -67,15 +83,76 @@ export function MetricsCard({
                   }
                   if (count !== null) setValue(count)
                 } else if (realtimeTable === 'appointments') {
-                  const { count, error } = await supabase
-                    .from('appointments')
-                    .select('*', { count: 'exact', head: true })
-                    .match(realtimeFilter || {})
-                  if (error) {
-                    console.error(`Error fetching ${realtimeTable} count:`, error)
-                    return
+                  // Build query based on query type
+                  let query = supabase.from('appointments')
+                  
+                  if (realtimeQueryType === 'sum' && realtimeQueryConfig?.sumField) {
+                    query = query.select(realtimeQueryConfig.sumField)
+                  } else if (realtimeQueryType === 'unique' && realtimeQueryConfig?.uniqueField) {
+                    query = query.select(realtimeQueryConfig.uniqueField)
+                  } else {
+                    query = query.select('*', { count: 'exact', head: true })
                   }
-                  if (count !== null) setValue(count)
+                  
+                  // Apply filters
+                  if (realtimeFilter) {
+                    Object.entries(realtimeFilter).forEach(([key, val]) => {
+                      query = query.eq(key, val)
+                    })
+                  }
+                  
+                  // Apply date range if provided
+                  if (realtimeQueryConfig?.dateRange) {
+                    query = query
+                      .gte('scheduled_at', realtimeQueryConfig.dateRange.start)
+                      .lte('scheduled_at', realtimeQueryConfig.dateRange.end)
+                  }
+                  
+                  // Apply date filter (gte) if provided
+                  if (realtimeQueryConfig?.dateFilter?.gte) {
+                    query = query.gte('scheduled_at', realtimeQueryConfig.dateFilter.gte)
+                  }
+                  
+                  // Apply date filter (lte) if provided
+                  if (realtimeQueryConfig?.dateFilter?.lte) {
+                    query = query.lte('scheduled_at', realtimeQueryConfig.dateFilter.lte)
+                  }
+                  
+                  // Apply status filter if provided
+                  if (realtimeQueryConfig?.statusFilter && realtimeQueryConfig.statusFilter.length > 0) {
+                    query = query.in('status', realtimeQueryConfig.statusFilter)
+                  }
+                  
+                  // Execute query based on type
+                  if (realtimeQueryType === 'sum' && realtimeQueryConfig?.sumField) {
+                    const { data, error } = await query
+                    if (error) {
+                      console.error(`Error in sum query for ${title}:`, error)
+                      return
+                    }
+                    const sum = data?.reduce((acc: number, item: any) => {
+                      const val = Number(item[realtimeQueryConfig.sumField!]) || 0
+                      return acc + val
+                    }, 0) || 0
+                    setValue(`₦${Math.round(sum / 100).toLocaleString()}`)
+                  } else if (realtimeQueryType === 'unique' && realtimeQueryConfig?.uniqueField) {
+                    const { data, error } = await query
+                    if (error) {
+                      console.error(`Error in unique query for ${title}:`, error)
+                      return
+                    }
+                    const uniqueValues = new Set(
+                      data?.map((item: any) => item[realtimeQueryConfig.uniqueField!]).filter(Boolean)
+                    )
+                    setValue(uniqueValues.size)
+                  } else {
+                    const { count, error } = await query
+                    if (error) {
+                      console.error(`Error fetching ${realtimeTable} count:`, error)
+                      return
+                    }
+                    if (count !== null) setValue(count)
+                  }
                 }
               } catch (error) {
                 console.error(`Error updating ${realtimeTable} metric:`, error)
@@ -110,7 +187,7 @@ export function MetricsCard({
         supabase.removeChannel(channel)
       }
     }
-  }, [realtimeTable, realtimeFilter, title, supabase])
+  }, [realtimeTable, realtimeFilter, realtimeQueryType, realtimeQueryConfig, title, supabase])
 
   return (
     <Card className="p-6">

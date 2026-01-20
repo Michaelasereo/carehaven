@@ -16,6 +16,14 @@ interface AdminMetricsGridProps {
     }
     realtimeTable?: 'profiles' | 'appointments'
     realtimeFilter?: Record<string, any>
+    realtimeQueryType?: 'count' | 'sum' | 'unique'
+    realtimeQueryConfig?: {
+      sumField?: string
+      uniqueField?: string
+      dateRange?: { start: string; end: string }
+      statusFilter?: string[]
+      dateFilter?: { gte?: string; lte?: string }
+    }
   }>
 }
 
@@ -43,6 +51,8 @@ export function AdminMetricsGrid({ stats }: AdminMetricsGridProps) {
             trend={stat.trend}
             realtimeTable={stat.realtimeTable}
             realtimeFilter={stat.realtimeFilter}
+            realtimeQueryType={stat.realtimeQueryType}
+            realtimeQueryConfig={stat.realtimeQueryConfig}
           />
         )
       })}

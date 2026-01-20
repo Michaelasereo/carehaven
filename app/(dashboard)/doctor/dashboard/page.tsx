@@ -112,6 +112,13 @@ export default async function DoctorDashboardPage() {
       trend: { value: consultationsTrend, period: 'last month' },
       realtimeTable: 'appointments' as const,
       realtimeFilter: { doctor_id: user.id, status: 'completed' },
+      realtimeQueryType: 'count' as const,
+      realtimeQueryConfig: {
+        dateRange: {
+          start: timeRange.start.toISOString(),
+          end: timeRange.end.toISOString(),
+        },
+      },
     },
     {
       title: 'Upcoming Appointments',
@@ -121,6 +128,11 @@ export default async function DoctorDashboardPage() {
       bgColor: 'bg-blue-50',
       realtimeTable: 'appointments' as const,
       realtimeFilter: { doctor_id: user.id },
+      realtimeQueryType: 'count' as const,
+      realtimeQueryConfig: {
+        statusFilter: ['scheduled', 'confirmed'],
+        dateFilter: { gte: new Date().toISOString() },
+      },
     },
     {
       title: 'Total Revenue',
@@ -129,6 +141,16 @@ export default async function DoctorDashboardPage() {
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       trend: { value: revenueTrend, period: 'last month' },
+      realtimeTable: 'appointments' as const,
+      realtimeFilter: { doctor_id: user.id, payment_status: 'paid' },
+      realtimeQueryType: 'sum' as const,
+      realtimeQueryConfig: {
+        sumField: 'amount',
+        dateRange: {
+          start: timeRange.start.toISOString(),
+          end: timeRange.end.toISOString(),
+        },
+      },
     },
     {
       title: 'Total Patients',
@@ -136,6 +158,12 @@ export default async function DoctorDashboardPage() {
       iconName: 'Users',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+      realtimeTable: 'appointments' as const,
+      realtimeFilter: { doctor_id: user.id },
+      realtimeQueryType: 'unique' as const,
+      realtimeQueryConfig: {
+        uniqueField: 'patient_id',
+      },
     },
   ]
 

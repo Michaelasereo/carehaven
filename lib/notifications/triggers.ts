@@ -2,6 +2,19 @@ import { createNotification } from './create'
 import { sendEmail } from '@/lib/email/client'
 
 /**
+ * Helper function to ensure doctor name has "Dr." prefix
+ * Exported for use in payment handlers and other modules
+ */
+export function formatDoctorName(doctorName: string): string {
+  if (!doctorName) return 'Dr. Unknown'
+  const trimmed = doctorName.trim()
+  if (trimmed.toLowerCase().startsWith('dr.')) {
+    return trimmed
+  }
+  return `Dr. ${trimmed}`
+}
+
+/**
  * Create notification when appointment is confirmed
  */
 export async function notifyAppointmentConfirmed(
@@ -10,11 +23,12 @@ export async function notifyAppointmentConfirmed(
   doctorName: string,
   scheduledAt: Date
 ) {
+  const formattedDoctorName = formatDoctorName(doctorName)
   await createNotification(
     patientId,
     'appointment',
     'Appointment Confirmed',
-    `Your appointment with ${doctorName} is confirmed for ${scheduledAt.toLocaleDateString()}`,
+    `Your appointment with ${formattedDoctorName} is confirmed for ${scheduledAt.toLocaleDateString()}`,
     { appointment_id: appointmentId }
   )
 }
@@ -27,11 +41,12 @@ export async function notifyPrescriptionCreated(
   prescriptionId: string,
   doctorName: string
 ) {
+  const formattedDoctorName = formatDoctorName(doctorName)
   await createNotification(
     patientId,
     'prescription',
     'New Prescription',
-    `You have a new prescription from ${doctorName}`,
+    `You have a new prescription from ${formattedDoctorName}`,
     { prescription_id: prescriptionId }
   )
 }
@@ -45,11 +60,12 @@ export async function notifyInvestigationRequested(
   testName: string,
   doctorName: string
 ) {
+  const formattedDoctorName = formatDoctorName(doctorName)
   await createNotification(
     patientId,
     'investigation',
     'Investigation Requested',
-    `${doctorName} has requested a ${testName} test for you`,
+    `${formattedDoctorName} has requested a ${testName} test for you`,
     { investigation_id: investigationId }
   )
 }
@@ -156,7 +172,7 @@ export async function sendDoctorAppointmentEmail(
             <h2>New Appointment Booked</h2>
           </div>
           <div class="content">
-            <p>Dear Dr. ${doctorName},</p>
+            <p>Dear ${formatDoctorName(doctorName)},</p>
             <p>A new appointment has been booked with you. Please find the details below:</p>
             
             <div class="detail-row">

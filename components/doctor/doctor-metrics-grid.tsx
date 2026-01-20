@@ -25,6 +25,14 @@ interface Stat {
   trend?: { value: number; period: string }
   realtimeTable?: 'appointments' | 'notifications'
   realtimeFilter?: Record<string, any>
+  realtimeQueryType?: 'count' | 'sum' | 'unique'
+  realtimeQueryConfig?: {
+    sumField?: string
+    uniqueField?: string
+    dateRange?: { start: string; end: string }
+    statusFilter?: string[]
+    dateFilter?: { gte?: string; lte?: string }
+  }
 }
 
 export function DoctorMetricsGrid({ stats }: { stats: Stat[] }) {
@@ -47,6 +55,8 @@ export function DoctorMetricsGrid({ stats }: { stats: Stat[] }) {
             trend={stat.trend}
             realtimeTable={stat.realtimeTable}
             realtimeFilter={stat.realtimeFilter}
+            realtimeQueryType={stat.realtimeQueryType}
+            realtimeQueryConfig={stat.realtimeQueryConfig}
           />
         )
       })}

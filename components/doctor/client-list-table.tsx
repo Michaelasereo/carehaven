@@ -67,7 +67,6 @@ export function ClientListTable({
                 {getSortIcon('email')}
               </button>
             </TableHead>
-            <TableHead>Phone</TableHead>
             <TableHead>
               <button
                 onClick={() => handleSort('appointment_count')}
@@ -127,7 +126,6 @@ export function ClientListTable({
                   </div>
                 </TableCell>
                 <TableCell className="text-sm">{client.email || 'N/A'}</TableCell>
-                <TableCell className="text-sm">{client.phone || 'N/A'}</TableCell>
                 <TableCell>{client.appointment_count || 0}</TableCell>
                 <TableCell className="text-sm text-gray-600">
                   {client.last_visit ? format(new Date(client.last_visit), 'MMM d, yyyy') : 'Never'}

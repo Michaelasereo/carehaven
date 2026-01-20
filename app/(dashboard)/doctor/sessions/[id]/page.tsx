@@ -18,13 +18,14 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { PatientMedicalHistory } from '@/components/doctor/patient-medical-history'
-import { PatientAnalytics } from '@/components/doctor/patient-analytics'
+import { AddInterpretationButton } from '@/components/doctor/add-interpretation-button'
 
 export default async function PatientDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -46,7 +47,7 @@ export default async function PatientDetailPage({
   const { data: appointmentCheck } = await supabase
     .from('appointments')
     .select('id')
-    .eq('patient_id', params.id)
+    .eq('patient_id', id)
     .eq('doctor_id', user.id)
     .limit(1)
     .maybeSingle()
@@ -56,14 +57,32 @@ export default async function PatientDetailPage({
   }
 
   // Fetch patient details
+  // Removed role filter - patient ID comes from appointments linked to this doctor
   const { data: patient, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', params.id)
-    .eq('role', 'patient')
+    .eq('id', id)
     .single()
 
-  if (error || !patient) {
+  if (error) {
+    console.error('Error fetching patient profile:', {
+      error,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      patientId: id,
+      doctorId: user.id,
+    })
+    // If RLS error, redirect to sessions page with message
+    if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy')) {
+      redirect('/doctor/sessions?error=rls_policy')
+    }
+    notFound()
+  }
+
+  if (!patient) {
+    console.error('Patient profile not found:', { patientId: id, doctorId: user.id })
     notFound()
   }
 
@@ -76,19 +95,19 @@ export default async function PatientDetailPage({
     supabase
       .from('appointments')
       .select('*')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .eq('doctor_id', user.id)
       .order('scheduled_at', { ascending: false }),
     supabase
       .from('prescriptions')
       .select('*')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .eq('doctor_id', user.id)
       .order('created_at', { ascending: false }),
     supabase
       .from('investigations')
       .select('*')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .eq('doctor_id', user.id)
       .order('created_at', { ascending: false }),
   ])
@@ -138,22 +157,20 @@ export default async function PatientDetailPage({
                 {patient.profile_completed ? 'Complete' : 'Incomplete'}
               </Badge>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex flex-wrap gap-8">
               <div>
                 <p className="text-sm text-gray-600">Email</p>
                 <p className="font-medium">{patient.email || 'N/A'}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Phone</p>
-                <p className="font-medium">{patient.phone || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Age</p>
-                <p className="font-medium">{age ? `${age} years` : 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Gender</p>
-                <p className="font-medium">{patient.gender || 'N/A'}</p>
+              <div className="flex items-center gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Age</p>
+                  <p className="font-medium">{age ? `${age} years` : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Gender</p>
+                  <p className="font-medium">{patient.gender || 'N/A'}</p>
+                </div>
               </div>
               {patient.blood_group && (
                 <div>
@@ -222,12 +239,12 @@ export default async function PatientDetailPage({
           <TabsTrigger value="appointments">Appointments</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
           <TabsTrigger value="investigations">Investigations</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="analytics" disabled>Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="medical-history" className="space-y-4">
           <PatientMedicalHistory
-            patientId={params.id}
+            patientId={id}
             doctorId={user.id}
           />
         </TabsContent>
@@ -324,6 +341,19 @@ export default async function PatientDetailPage({
                     {investigation.results_text && (
                       <p className="text-sm text-gray-700 mt-2">{investigation.results_text}</p>
                     )}
+                    {investigation.interpretation && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium">Interpretation:</p>
+                        <p className="text-sm text-gray-600">{investigation.interpretation}</p>
+                      </div>
+                    )}
+                    <div className="mt-3">
+                      <AddInterpretationButton
+                        investigationId={investigation.id}
+                        currentInterpretation={investigation.interpretation}
+                        investigationStatus={investigation.status}
+                      />
+                    </div>
                   </div>
                 ))
               ) : (
@@ -333,14 +363,6 @@ export default async function PatientDetailPage({
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <PatientAnalytics
-            patientId={params.id}
-            doctorId={user.id}
-            appointments={appointments || []}
-            totalSpent={totalSpent}
-          />
-        </TabsContent>
       </Tabs>
     </div>
   )

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useToast } from '@/components/ui/toast'
 
 const soapSchema = z.object({
@@ -37,17 +37,70 @@ export function SOAPForm({ appointmentId, doctorId, patientId }: SOAPFormProps) 
   const supabase = createClient()
   const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true)
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
+    reset,
   } = useForm<SOAPFormData>({
     resolver: zodResolver(soapSchema),
   })
 
   const drugPrescription = watch('drug_prescription')
+
+  // Load existing consultation notes
+  useEffect(() => {
+    const loadExistingNotes = async () => {
+      try {
+        const { data: notes, error } = await supabase
+          .from('consultation_notes')
+          .select('*')
+          .eq('appointment_id', appointmentId)
+          .single()
+
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 is "not found" which is fine for new notes
+          console.error('Error loading consultation notes:', error)
+        }
+
+        if (notes) {
+          // Parse subjective field to extract individual components
+          const subjective = notes.subjective || ''
+          const presentingComplaintMatch = subjective.match(/Presenting Complaint:\s*(.+?)(?:\n\n|$)/s)
+          const historyMatch = subjective.match(/History of Presenting Complaint:\s*(.+?)(?:\n\n|$)/s)
+          const pastMedicalMatch = subjective.match(/Past Medical & Surgical History:\s*(.+?)(?:\n\n|$)/s)
+          const familyHistoryMatch = subjective.match(/Family History:\s*(.+?)(?:\n\n|$)/s)
+          const drugSocialMatch = subjective.match(/Drug and Social History:\s*(.+?)(?:\n\n|$)/s)
+
+          // Extract prescription text if available
+          const prescriptionText = notes.prescription?.text || ''
+
+          // Populate form with existing data
+          reset({
+            presenting_complaint: presentingComplaintMatch?.[1]?.trim() || '',
+            history_presenting_complaint: historyMatch?.[1]?.trim() || '',
+            past_medical_history: pastMedicalMatch?.[1]?.trim() || '',
+            family_history: familyHistoryMatch?.[1]?.trim() || '',
+            drug_social_history: drugSocialMatch?.[1]?.trim() || '',
+            vital_signs: notes.objective || '',
+            assessment: notes.assessment || '',
+            plan: notes.plan || '',
+            diagnosis: notes.diagnosis || '',
+            drug_prescription: prescriptionText,
+          })
+        }
+      } catch (error) {
+        console.error('Error loading notes:', error)
+      } finally {
+        setIsLoadingNotes(false)
+      }
+    }
+
+    loadExistingNotes()
+  }, [appointmentId, supabase, reset])
 
   const onSubmit = async (data: SOAPFormData) => {
     setIsLoading(true)
@@ -120,6 +173,14 @@ export function SOAPForm({ appointmentId, doctorId, patientId }: SOAPFormProps) 
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isLoadingNotes) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <p className="text-gray-600">Loading consultation notes...</p>
+      </div>
+    )
   }
 
   return (

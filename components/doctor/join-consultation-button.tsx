@@ -20,6 +20,7 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
   const [canJoin, setCanJoin] = useState(false)
   const [scheduledAt, setScheduledAt] = useState<string | null>(null)
   const [appointmentStatus, setAppointmentStatus] = useState<string | null>(null)
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
 
   // Check if within join window (15 minutes before appointment)
   useEffect(() => {
@@ -35,12 +36,12 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
     return () => clearInterval(interval)
   }, [scheduledAt])
 
-  // Fetch appointment scheduled time and status
+  // Fetch appointment scheduled time, status, and payment status
   useEffect(() => {
     const fetchAppointment = async () => {
       const { data } = await supabase
         .from('appointments')
-        .select('scheduled_at, status')
+        .select('scheduled_at, status, payment_status')
         .eq('id', appointmentId)
         .single()
 
@@ -49,6 +50,9 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
       }
       if (data?.status) {
         setAppointmentStatus(data.status)
+      }
+      if (data?.payment_status) {
+        setPaymentStatus(data.payment_status)
       }
     }
 
@@ -69,6 +73,9 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
           if (payload.new.status) {
             setAppointmentStatus(payload.new.status as string)
           }
+          if (payload.new.payment_status) {
+            setPaymentStatus(payload.new.payment_status as string)
+          }
         }
       )
       .subscribe()
@@ -84,11 +91,33 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
       // Get appointment details
       const { data: appointment, error } = await supabase
         .from('appointments')
-        .select('daily_room_name, daily_room_url, status')
+        .select('daily_room_name, daily_room_url, status, payment_status')
         .eq('id', appointmentId)
         .single()
 
       if (error) throw error
+
+      // Check if payment is pending
+      if (appointment.payment_status === 'pending' && appointment.status === 'scheduled') {
+        addToast({
+          variant: 'destructive',
+          title: 'Payment Pending',
+          description: 'This appointment cannot be joined until payment is confirmed. Please wait for the patient to complete payment.',
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // Verify appointment is confirmed or in progress
+      if (appointment.status !== 'confirmed' && appointment.status !== 'in_progress') {
+        addToast({
+          variant: 'destructive',
+          title: 'Cannot Join',
+          description: `This appointment is ${appointment.status}. Only confirmed or in-progress appointments can be joined.`,
+        })
+        setIsLoading(false)
+        return
+      }
 
       // Create room if it doesn't exist
       if (!appointment.daily_room_name) {
@@ -99,14 +128,22 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
         })
 
         if (!response.ok) {
-          let errorMessage = 'Failed to create room'
+          let errorMessage = 'Failed to create consultation room'
+          let errorDetails = ''
           try {
             const errorData = await response.json()
             errorMessage = errorData.error || errorMessage
+            errorDetails = errorData.details || ''
           } catch {
             // Use default message if parsing fails
           }
-          throw new Error(errorMessage)
+          
+          // Provide user-friendly error message
+          const userMessage = errorDetails 
+            ? `${errorMessage}. ${errorDetails}`
+            : `${errorMessage}. Please try again or contact support if the issue persists.`
+          
+          throw new Error(userMessage)
         }
 
         const { room } = await response.json()
@@ -128,7 +165,17 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
           body: JSON.stringify({ roomName: room.name, appointmentId }),
         })
 
+        if (!tokenResponse.ok) {
+          const errorData = await tokenResponse.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Failed to generate access token. Please try again.')
+        }
+
         const { token } = await tokenResponse.json()
+        
+        if (!token) {
+          throw new Error('Access token not received. Please try again.')
+        }
+        
         router.push(`/consultation/${appointmentId}?token=${token}&roomUrl=${encodeURIComponent(room.url)}`)
       } else {
         // Room exists, get token and join
@@ -138,7 +185,16 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
           body: JSON.stringify({ roomName: appointment.daily_room_name, appointmentId }),
         })
 
+        if (!tokenResponse.ok) {
+          const errorData = await tokenResponse.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Failed to generate access token. Please try again.')
+        }
+
         const { token } = await tokenResponse.json()
+
+        if (!token) {
+          throw new Error('Access token not received. Please try again.')
+        }
 
         // Update status if still confirmed
         if (appointment.status === 'confirmed') {

@@ -11,6 +11,7 @@ import {
   Settings,
   User,
   Stethoscope,
+  FileText,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { NairaIcon } from '@/components/icons/naira-icon'
@@ -18,6 +19,7 @@ import { NairaIcon } from '@/components/icons/naira-icon'
 const doctorNavItems = [
   { href: '/doctor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/doctor/appointments', label: 'Appointments', icon: Calendar },
+  { href: '/doctor/session-notes', label: 'Session Notes', icon: FileText },
   { href: '/doctor/sessions', label: 'Clients', icon: Stethoscope },
   { href: '/doctor/analytics', label: 'Revenue', icon: NairaIcon },
   { href: '/doctor/availability', label: 'Availability', icon: Clock },

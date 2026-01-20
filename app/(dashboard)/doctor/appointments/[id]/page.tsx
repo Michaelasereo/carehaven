@@ -12,12 +12,18 @@ import { CreatePrescriptionButton } from '@/components/doctor/create-prescriptio
 import { RequestInvestigationButton } from '@/components/doctor/request-investigation-button'
 import { PatientHistoryTimeline } from '@/components/doctor/patient-history-timeline'
 import { ViewResultsLink } from '@/components/investigations/view-results-link'
+import { AddInterpretationButton } from '@/components/doctor/add-interpretation-button'
+
+// Force dynamic rendering to ensure fresh data after appointment status changes
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export default async function AppointmentDetailsPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -42,7 +48,7 @@ export default async function AppointmentDetailsPage({
       *,
       profiles!appointments_patient_id_fkey(*)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('doctor_id', user.id)
     .single()
 
@@ -54,21 +60,21 @@ export default async function AppointmentDetailsPage({
   const { data: notes } = await supabase
     .from('consultation_notes')
     .select('*')
-    .eq('appointment_id', params.id)
+    .eq('appointment_id', id)
     .single()
 
   // Fetch prescriptions
   const { data: prescriptions } = await supabase
     .from('prescriptions')
     .select('*')
-    .eq('appointment_id', params.id)
+    .eq('appointment_id', id)
     .order('created_at', { ascending: false })
 
   // Fetch investigations
   const { data: investigations } = await supabase
     .from('investigations')
     .select('*')
-    .eq('appointment_id', params.id)
+    .eq('appointment_id', id)
     .order('created_at', { ascending: false })
 
   const patient = appointment.profiles
@@ -80,11 +86,16 @@ export default async function AppointmentDetailsPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Appointment Details</h1>
-          <p className="text-gray-600 mt-1">
-            Consultation with {patient?.full_name || 'Patient'}
-          </p>
+        <div className="flex items-center gap-4">
+          <Link href={`/doctor/sessions/${appointment.patient_id}`}>
+            <Button variant="outline" size="sm">← Back to Patient</Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Appointment Details</h1>
+            <p className="text-gray-600 mt-1">
+              Consultation with {patient?.full_name || 'Patient'}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={appointment.status === 'completed' ? 'default' : 'secondary'}>
@@ -306,6 +317,15 @@ export default async function AppointmentDetailsPage({
                 {investigation.results_url && (
                   <div className="mt-2">
                     <ViewResultsLink filePath={investigation.results_url} label="View Results File" />
+                  </div>
+                )}
+                {isCompleted && (
+                  <div className="mt-3">
+                    <AddInterpretationButton
+                      investigationId={investigation.id}
+                      currentInterpretation={investigation.interpretation}
+                      investigationStatus={investigation.status}
+                    />
                   </div>
                 )}
               </div>

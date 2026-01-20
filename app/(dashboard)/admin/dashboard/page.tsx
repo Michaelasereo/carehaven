@@ -160,6 +160,7 @@ export default async function AdminDashboard() {
       bgColor: 'bg-purple-50',
       trend: { value: appointmentsTrend, period: 'last month' },
       realtimeTable: 'appointments' as const,
+      // No filter - counts all appointments
     },
     {
       title: 'Total Revenue',
@@ -168,6 +169,16 @@ export default async function AdminDashboard() {
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       trend: { value: revenueTrend, period: 'last month' },
+      realtimeTable: 'appointments' as const,
+      realtimeFilter: { payment_status: 'paid' },
+      realtimeQueryType: 'sum' as const,
+      realtimeQueryConfig: {
+        sumField: 'amount',
+        dateRange: {
+          start: timeRange.start.toISOString(),
+          end: timeRange.end.toISOString(),
+        },
+      },
     },
     {
       title: 'Revoked Access',

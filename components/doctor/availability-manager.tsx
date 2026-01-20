@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,15 +22,43 @@ interface AvailabilitySlot {
 interface AvailabilityManagerProps {
   doctorId: string
   initialAvailability: any[]
+  licenseVerified?: boolean
 }
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export function AvailabilityManager({ doctorId, initialAvailability }: AvailabilityManagerProps) {
+export function AvailabilityManager({ doctorId, initialAvailability, licenseVerified = true }: AvailabilityManagerProps) {
   const router = useRouter()
   const supabase = createClient()
   const { addToast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
+  const [isVerified, setIsVerified] = useState(licenseVerified)
+
+  // Subscribe to verification status changes
+  useEffect(() => {
+    const channel = supabase
+      .channel(`availability-verification-${doctorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${doctorId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any
+          if (newData.license_verified !== undefined) {
+            setIsVerified(newData.license_verified)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [doctorId, supabase])
   
   // Group availability by day
   const [availability, setAvailability] = useState<Record<number, AvailabilitySlot[]>>(() => {
@@ -90,6 +118,15 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
   }
 
   const handleSave = async () => {
+    if (!isVerified) {
+      addToast({
+        variant: 'destructive',
+        title: 'Verification Required',
+        description: 'You must be verified to set availability. Please contact admin.',
+      })
+      return
+    }
+
     setIsSaving(true)
     try {
       // Get all slots
@@ -166,6 +203,12 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
 
   return (
     <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> All times are displayed in Lagos time (WAT - West Africa Time, UTC+1).
+          Changes to availability will sync in real-time to the booking flow.
+        </p>
+      </div>
       {dayNames.map((dayName, dayIndex) => (
         <Card key={dayIndex} className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -174,6 +217,7 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
               variant="outline"
               size="sm"
               onClick={() => addSlot(dayIndex)}
+              disabled={!isVerified}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Time Slot
@@ -193,6 +237,7 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
                       onCheckedChange={(checked) =>
                         updateSlot(dayIndex, slotIndex, 'active', checked)
                       }
+                      disabled={!isVerified}
                     />
                     <Label className="text-sm font-medium">
                       {slot.active ? 'Active' : 'Inactive'}
@@ -211,6 +256,7 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
                         updateSlot(dayIndex, slotIndex, 'start_time', e.target.value)
                       }
                       className="w-32"
+                      disabled={!isVerified}
                     />
                   </div>
 
@@ -226,6 +272,7 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
                         updateSlot(dayIndex, slotIndex, 'end_time', e.target.value)
                       }
                       className="w-32"
+                      disabled={!isVerified}
                     />
                   </div>
 
@@ -249,13 +296,21 @@ export function AvailabilityManager({ doctorId, initialAvailability }: Availabil
       <div className="flex justify-end">
         <Button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || !isVerified}
           className="bg-teal-600 hover:bg-teal-700"
         >
           <Save className="h-4 w-4 mr-2" />
-          {isSaving ? 'Saving...' : 'Save Availability'}
+          {isSaving ? 'Saving...' : !isVerified ? 'Verification Required' : 'Save Availability'}
         </Button>
       </div>
+
+      {!isVerified && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm text-yellow-800">
+            <strong>Note:</strong> Your access has been revoked. Please contact the administrator to restore your access.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

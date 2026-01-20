@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
 import { Footer } from '@/components/layout/Footer'
 import { Stethoscope, Calendar, FileText, Clock, ArrowRight } from 'lucide-react'
+import { HomepageAuthHandler } from '@/components/auth/homepage-auth-handler'
 
 // FAQ Accordion Component
 function FAQAccordion({ faqs }: { faqs: Array<{ question: string; answer: string }> }) {
@@ -67,6 +68,7 @@ export default async function Home() {
   }
   return (
     <div className="flex min-h-screen flex-col">
+      <HomepageAuthHandler />
       <header className="border-b">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6 relative">
           <div className="flex items-center">

@@ -17,18 +17,20 @@ import { useToast } from '@/components/ui/toast'
 
 interface VerifyDoctorButtonProps {
   doctorId: string
+  currentVerificationStatus?: boolean
 }
 
-export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
+export function VerifyDoctorButton({ doctorId, currentVerificationStatus }: VerifyDoctorButtonProps) {
   const [showDialog, setShowDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [isVerified, setIsVerified] = useState(currentVerificationStatus ?? false)
   const supabase = createClient()
   const router = useRouter()
   const { addToast } = useToast()
 
   useEffect(() => {
-    // Fetch user role
+    // Fetch user role and doctor verification status
     const fetchUserRole = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -39,17 +41,54 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
           .single()
         setUserRole(profile?.role || null)
       }
+
+      // Fetch doctor verification status
+      const { data: doctorProfile } = await supabase
+        .from('profiles')
+        .select('license_verified')
+        .eq('id', doctorId)
+        .single()
+      
+      if (doctorProfile) {
+        setIsVerified(doctorProfile.license_verified || false)
+      }
     }
 
     fetchUserRole()
-  }, [supabase])
 
-  const handleVerify = async () => {
+    // Subscribe to verification status changes
+    const channel = supabase
+      .channel(`doctor-verification-${doctorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${doctorId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any
+          if (newData.license_verified !== undefined) {
+            setIsVerified(newData.license_verified)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, doctorId])
+
+  const handleToggleVerification = async () => {
     setIsLoading(true)
+    const newVerificationStatus = !isVerified
+    
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ license_verified: true })
+        .update({ license_verified: newVerificationStatus })
         .eq('id', doctorId)
 
       if (error) throw error
@@ -63,7 +102,7 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
             type: 'verification',
             entityType: 'profile',
             entityId: doctorId,
-            verified: true,
+            verified: newVerificationStatus,
           }),
         })
       } catch (auditError) {
@@ -76,21 +115,32 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
         await supabase.from('notifications').insert({
           user_id: doctorId,
           type: 'system',
-          title: 'License Verified',
-          body: 'Your medical license has been verified. You can now accept appointments.',
+          title: newVerificationStatus ? 'Access Restored' : 'Access Revoked',
+          body: newVerificationStatus 
+            ? 'Your access has been restored. You can now accept appointments and set availability.'
+            : 'Your access has been revoked. You cannot set availability or accept new appointments until access is restored.',
         })
       } catch (notifError) {
         console.error('Error creating notification:', notifError)
       }
 
+      setIsVerified(newVerificationStatus)
       router.refresh()
       setShowDialog(false)
+      
+      addToast({
+        variant: 'success',
+        title: 'Success',
+        description: newVerificationStatus 
+          ? 'Doctor access restored successfully.'
+          : 'Doctor access revoked successfully.',
+      })
     } catch (error) {
-      console.error('Error verifying doctor:', error)
+      console.error('Error updating verification:', error)
       addToast({
         variant: 'destructive',
-        title: 'Verification Failed',
-        description: 'Failed to verify doctor. Please try again.',
+        title: 'Operation Failed',
+        description: `Failed to ${newVerificationStatus ? 'restore access' : 'revoke access'}. Please try again.`,
       })
     } finally {
       setIsLoading(false)
@@ -106,19 +156,24 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
     <>
       <Button
         onClick={() => setShowDialog(true)}
-        className="bg-teal-600 hover:bg-teal-700"
+        className={isVerified ? "bg-red-600 hover:bg-red-700" : "bg-teal-600 hover:bg-teal-700"}
         size="sm"
+        variant={isVerified ? "destructive" : "default"}
       >
         <UserCheck className="h-4 w-4 mr-2" />
-        Verify License
+        {isVerified ? 'Revoke Verification' : 'Restore Access'}
       </Button>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Verify Doctor License</DialogTitle>
+            <DialogTitle>
+              {isVerified ? 'Revoke Doctor Access' : 'Restore Doctor Access'}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to verify this doctor's license? This will allow them to accept appointments.
+              {isVerified 
+                ? "Are you sure you want to revoke this doctor's access? They will not be able to set availability or accept new appointments until access is restored."
+                : "Are you sure you want to restore this doctor's access? This will allow them to accept appointments and set availability."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -126,11 +181,14 @@ export function VerifyDoctorButton({ doctorId }: VerifyDoctorButtonProps) {
               Cancel
             </Button>
             <Button
-              onClick={handleVerify}
-              className="bg-teal-600 hover:bg-teal-700"
+              onClick={handleToggleVerification}
+              className={isVerified ? "bg-red-600 hover:bg-red-700" : "bg-teal-600 hover:bg-teal-700"}
               disabled={isLoading}
+              variant={isVerified ? "destructive" : "default"}
             >
-              {isLoading ? 'Verifying...' : 'Verify License'}
+              {isLoading 
+                ? (isVerified ? 'Revoking...' : 'Restoring...') 
+                : (isVerified ? 'Revoke Verification' : 'Restore Access')}
             </Button>
           </DialogFooter>
         </DialogContent>

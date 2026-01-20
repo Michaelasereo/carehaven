@@ -170,7 +170,7 @@ export default async function AdminDashboard() {
       trend: { value: revenueTrend, period: 'last month' },
     },
     {
-      title: 'Pending Verifications',
+      title: 'Revoked Access',
       value: pendingVerifications || 0,
       iconName: 'UserCheck' as const,
       color: 'text-orange-600',

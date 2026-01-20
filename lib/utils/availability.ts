@@ -97,8 +97,9 @@ export function getAvailableTimeSlots(
     const startTimeMinutes = startHour * 60 + startMinute
     const endTimeMinutes = endHour * 60 + endMinute
 
-    // Generate 30-minute slots
-    for (let time = startTimeMinutes; time + durationMinutes <= endTimeMinutes; time += durationMinutes) {
+    // Generate hourly slots (45 min consultation + 15 min buffer = 60 min total)
+    const SLOT_INTERVAL_MINUTES = 60 // 1 hour blocks
+    for (let time = startTimeMinutes; time + SLOT_INTERVAL_MINUTES <= endTimeMinutes; time += SLOT_INTERVAL_MINUTES) {
       const hours = Math.floor(time / 60)
       const minutes = time % 60
       const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`

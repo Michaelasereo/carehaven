@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { AvailabilityManager } from '@/components/doctor/availability-manager'
+import { AvailabilityPageClient } from '@/components/doctor/availability-page-client'
 
 export default async function AvailabilityPage() {
   const supabase = await createClient()
@@ -37,7 +37,11 @@ export default async function AvailabilityPage() {
         </p>
       </div>
 
-      <AvailabilityManager doctorId={user.id} initialAvailability={availability || []} />
+      <AvailabilityPageClient
+        doctorId={user.id}
+        initialLicenseVerified={profile.license_verified || false}
+        initialAvailability={availability || []}
+      />
     </div>
   )
 }

@@ -64,14 +64,14 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Auth routes that don't require authentication
-  const authRoutes = ['/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/forgot-password', '/auth/reset-password', '/auth/callback', '/admin/login', '/doctor/login']
+  const authRoutes = ['/auth/signin', '/auth/signup', '/auth/verify-email', '/auth/forgot-password', '/auth/reset-password', '/auth/callback', '/auth/handle-signin', '/admin/login', '/doctor/login']
   const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route))
   
   // API auth routes
   const isAuthApiRoute = request.nextUrl.pathname.startsWith('/api/auth/')
   
   // Public routes that don't require auth
-  const publicRoutes = ['/', '/about', '/contact', '/pricing', '/doctor-enrollment', '/privacy-policy', '/terms-of-service', '/support', '/how-it-works']
+  const publicRoutes = ['/', '/about', '/contact', '/pricing', '/doctor-enrollment', '/privacy-policy', '/terms-of-service', '/support', '/how-it-works', '/payment/callback']
   const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/doctor-enrollment')
 
   // If user is not signed in and the current path is not public or auth route
@@ -87,7 +87,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If user is signed in and trying to access auth routes
-  if (user && isAuthRoute && request.nextUrl.pathname !== '/auth/callback') {
+  // Allow handle-signin to process (it will redirect itself)
+  if (user && isAuthRoute && request.nextUrl.pathname !== '/auth/callback' && request.nextUrl.pathname !== '/auth/handle-signin') {
     // #region agent log
     if (process.env.NODE_ENV === 'development') {
       fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:79',message:'Middleware checking profile for authenticated user on auth route',data:{path:request.nextUrl.pathname,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});

@@ -105,14 +105,20 @@ export default function DoctorNotificationsSettingsPage() {
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-6">Notification Preferences</h2>
         
-        <div className="space-y-6">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-gray-600">
+            Notification preferences are currently disabled for doctors. All important notifications are automatically enabled.
+          </p>
+        </div>
+        
+        <div className="space-y-6 opacity-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-teal-50 rounded-lg">
                 <Mail className="h-5 w-5 text-teal-600" />
               </div>
               <div>
-                <Label htmlFor="email-notifications" className="text-base font-medium cursor-pointer">
+                <Label htmlFor="email-notifications" className="text-base font-medium">
                   Allow Email Notifications
                 </Label>
                 <p className="text-sm text-gray-600 mt-1">
@@ -124,6 +130,7 @@ export default function DoctorNotificationsSettingsPage() {
               id="email-notifications"
               checked={emailNotifications}
               onCheckedChange={setEmailNotifications}
+              disabled={true}
             />
           </div>
 
@@ -134,7 +141,7 @@ export default function DoctorNotificationsSettingsPage() {
                   <Bell className="h-5 w-5 text-teal-600" />
                 </div>
                 <div>
-                  <Label htmlFor="sms-notifications" className="text-base font-medium cursor-pointer">
+                  <Label htmlFor="sms-notifications" className="text-base font-medium">
                     Allow SMS Notifications
                   </Label>
                   <p className="text-sm text-gray-600 mt-1">
@@ -146,18 +153,9 @@ export default function DoctorNotificationsSettingsPage() {
                 id="sms-notifications"
                 checked={smsNotifications}
                 onCheckedChange={setSmsNotifications}
+                disabled={true}
               />
             </div>
-          </div>
-
-          <div className="flex justify-end pt-4 border-t">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-teal-600 hover:bg-teal-700"
-            >
-              {saving ? 'Saving...' : 'Save Preferences'}
-            </Button>
           </div>
         </div>
       </Card>

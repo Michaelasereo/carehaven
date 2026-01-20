@@ -122,8 +122,11 @@ export default async function DoctorDetailPage({
             <p className="text-gray-600 mt-1">View and manage doctor profile</p>
           </div>
         </div>
-        {!doctor.license_verified && profile?.role === 'super_admin' && (
-          <VerifyDoctorButton doctorId={doctor.id} />
+        {profile?.role === 'super_admin' && (
+          <VerifyDoctorButton 
+            doctorId={doctor.id} 
+            currentVerificationStatus={doctor.license_verified || false}
+          />
         )}
       </div>
 
@@ -140,7 +143,7 @@ export default async function DoctorDetailPage({
             <div className="flex items-center gap-3 mb-4">
               <h2 className="text-2xl font-bold">{doctor.full_name || 'Unknown'}</h2>
               <Badge variant={doctor.license_verified ? 'default' : 'secondary'}>
-                {doctor.license_verified ? 'Verified' : 'Pending Verification'}
+                {doctor.license_verified ? 'Verified' : 'Access Revoked'}
               </Badge>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

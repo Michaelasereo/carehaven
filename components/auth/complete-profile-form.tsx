@@ -84,7 +84,9 @@ export function CompleteProfileForm() {
         .single()
 
       const redirectPath = profile?.role === 'doctor' ? '/doctor/dashboard' : '/patient'
-      router.push(redirectPath)
+      
+      // Use full page navigation to ensure proper session handling and middleware checks
+      window.location.href = redirectPath
     } catch (error) {
       console.error('Error:', error)
       alert('An error occurred. Please try again.')

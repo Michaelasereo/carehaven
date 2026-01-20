@@ -92,7 +92,7 @@ export function DoctorSearchForm({
               router.push(`/admin/doctors?${params.toString()}`)
             }}
           >
-            Pending Verification
+            Access Revoked
           </Button>
           <Button
             type="button"

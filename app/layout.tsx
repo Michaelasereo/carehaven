@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ReactQueryProvider } from "@/lib/react-query/provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { AuthHandler } from "./auth-handler";
 
 const dmSans = localFont({
   src: [
@@ -114,6 +115,7 @@ export default function RootLayout({
       >
         <ReactQueryProvider>
           <ToastProvider>
+            <AuthHandler />
             {children}
           </ToastProvider>
         </ReactQueryProvider>

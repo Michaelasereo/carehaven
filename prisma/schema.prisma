@@ -97,7 +97,7 @@ model Profile {
   licenseNumber     String?   @unique @map("license_number")
   licenseVerified   Boolean   @default(false) @map("license_verified")
   specialty         String?
-  yearsExperience   Int?      @map("years_experience")
+  yearsExperience   String?   @map("years_experience")
   consultationFee    Decimal?  @default(20000.00) @map("consultation_fee") @db.Decimal(10, 2)
   currency          String?   @default("NGN")
   bio               String?

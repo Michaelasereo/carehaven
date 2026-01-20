@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -10,14 +11,15 @@ import {
   Settings,
   User,
   Stethoscope,
-  TrendingUp,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { NairaIcon } from '@/components/icons/naira-icon'
 
 const doctorNavItems = [
   { href: '/doctor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/doctor/appointments', label: 'Appointments', icon: Calendar },
   { href: '/doctor/sessions', label: 'Clients', icon: Stethoscope },
-  { href: '/doctor/analytics', label: 'Analytics', icon: TrendingUp },
+  { href: '/doctor/analytics', label: 'Revenue', icon: NairaIcon },
   { href: '/doctor/availability', label: 'Availability', icon: Clock },
 ]
 
@@ -41,13 +43,21 @@ export function DoctorSidebar() {
         </div>
       </div>
 
+      {/* Doctors Tag */}
+      <div className="px-4 pt-4 pb-2">
+        <Badge variant="secondary" className="w-full justify-center py-1.5 bg-teal-50 text-teal-700 border-teal-200">
+          Doctors
+        </Badge>
+      </div>
+
       <nav className="flex-1 space-y-1 px-4 py-4">
         {doctorNavItems.map((item) => {
-          const Icon = item.icon
           // Only match exact path or paths that are children (but not parent matches)
           const isActive = item.href === '/doctor/dashboard'
-            ? pathname === item.href
+            ? pathname === item.href || pathname === '/doctor'
             : pathname === item.href || pathname?.startsWith(item.href + '/')
+          
+          const Icon = item.icon
           
           return (
             <Link
@@ -60,7 +70,7 @@ export function DoctorSidebar() {
                   : 'text-gray-700 hover:bg-gray-100'
               )}
             >
-              <Icon className="h-5 w-5" />
+              {React.createElement(Icon, { className: "h-5 w-5" })}
               {item.label}
             </Link>
           )
@@ -69,8 +79,8 @@ export function DoctorSidebar() {
         <div className="my-4 border-t" />
 
         {userNavItems.map((item) => {
-          const Icon = item.icon
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+          const Icon = item.icon
           
           return (
             <Link
@@ -83,7 +93,7 @@ export function DoctorSidebar() {
                   : 'text-gray-700 hover:bg-gray-100'
               )}
             >
-              <Icon className="h-5 w-5" />
+              {React.createElement(Icon, { className: "h-5 w-5" })}
               {item.label}
             </Link>
           )

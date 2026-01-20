@@ -41,17 +41,43 @@ export function MetricsCard({
     let isSubscribed = false
 
     const setupSubscription = () => {
+      // Build filter string properly for postgres_changes
+      let filterString: string | undefined = undefined
+      if (realtimeFilter && Object.keys(realtimeFilter).length > 0) {
+        // For multiple filters, use the first one (postgres_changes supports one filter at a time)
+        // Or combine them if needed
+        const entries = Object.entries(realtimeFilter)
+        if (entries.length === 1) {
+          const [key, val] = entries[0]
+          filterString = `${key}=eq.${val}`
+        } else {
+          // Use the first filter as primary, postgres_changes typically supports one filter
+          const [key, val] = entries[0]
+          filterString = `${key}=eq.${val}`
+          // Note: Multiple filters may need to be handled differently or in separate subscriptions
+        }
+      }
+
       const channel = supabase
-        .channel(`doctor-metrics-${title.toLowerCase().replace(/\s+/g, '-')}`)
+        .channel(`doctor-metrics-${title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: realtimeTable,
-            filter: realtimeFilter ? Object.entries(realtimeFilter).map(([key, val]) => `${key}=eq.${val}`).join(',') : undefined,
+            filter: filterString,
           },
-          () => {
+          (payload) => {
+            // Only update if the change matches our filter (additional client-side check)
+            if (realtimeFilter && Object.keys(realtimeFilter).length > 0) {
+              const matches = Object.entries(realtimeFilter).every(([key, val]) => {
+                const newValue = (payload.new as any)?.[key]
+                return newValue === val || newValue === String(val)
+              })
+              if (!matches) return // Skip if doesn't match our filter
+            }
+
             // Debounce updates (500ms)
             clearTimeout(timeoutId)
             timeoutId = setTimeout(async () => {
@@ -83,18 +109,29 @@ export function MetricsCard({
             }, 500)
           }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
             isSubscribed = true
+            console.log(`✅ Realtime subscription active for ${realtimeTable}`)
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error(`Realtime subscription error for ${realtimeTable}:`, status)
+            // Log but don't spam console - this might be due to realtime not being enabled
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(`⚠️ Realtime subscription ${status} for ${realtimeTable}. This is non-critical - metrics will still update on page refresh.`)
+              if (err) {
+                console.warn('   Error details:', err)
+              }
+            }
             isSubscribed = false
-            // Attempt reconnection after 5 seconds
+            // Only attempt reconnection if it was previously subscribed (avoid infinite loops)
+            // Wait longer before reconnection to avoid hammering the server
             reconnectTimeoutId = setTimeout(() => {
               if (!isSubscribed) {
+                console.log(`🔄 Attempting to reconnect realtime subscription for ${realtimeTable}...`)
                 setupSubscription()
               }
-            }, 5000)
+            }, 10000) // Wait 10 seconds before reconnection
+          } else if (status === 'CLOSED') {
+            isSubscribed = false
           }
         })
 

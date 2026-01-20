@@ -218,7 +218,7 @@ export function DoctorListTable({
                 <TableCell>{doctor.specialty || 'N/A'}</TableCell>
                 <TableCell>
                   <Badge variant={doctor.license_verified ? 'default' : 'secondary'}>
-                    {doctor.license_verified ? 'Verified' : 'Pending'}
+                    {doctor.license_verified ? 'Verified' : 'Access Revoked'}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-gray-600">
@@ -241,9 +241,18 @@ export function DoctorListTable({
                           View Details
                         </Link>
                       </DropdownMenuItem>
-                      {userRole === 'super_admin' && !doctor.license_verified && (
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                          <VerifyDoctorButton doctorId={doctor.id} />
+                      {userRole === 'super_admin' && (
+                        <DropdownMenuItem 
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            // Button will handle dialog
+                          }}
+                          className="p-0"
+                        >
+                          <VerifyDoctorButton 
+                            doctorId={doctor.id} 
+                            currentVerificationStatus={doctor.license_verified || false}
+                          />
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>

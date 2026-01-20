@@ -1,27 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Stethoscope, 
-  Calendar, 
-  FileText, 
-  DollarSign, 
-  Users, 
-  TrendingUp,
-  Clock,
-  Bell
-} from 'lucide-react'
-import { MetricsCard } from '@/components/doctor/metrics-card'
+import { DoctorMetricsGrid } from '@/components/doctor/doctor-metrics-grid'
 import { DoctorDashboardClient } from '@/components/doctor/dashboard-client'
 import { 
   getTimeRange, 
   calculateTrend, 
-  getUniquePatients,
-  getRepeatVisitRate,
-  getCompletionRate,
-  getCancellationRate
+  getUniquePatients
 } from '@/lib/doctor/analytics'
 import { subDays, format } from 'date-fns'
 import Link from 'next/link'
@@ -54,10 +39,7 @@ export default async function DoctorDashboardPage() {
   const [
     { count: totalConsultations },
     { count: upcomingAppointments },
-    { count: investigations },
     { count: consultationsPrevious },
-    { count: upcomingPrevious },
-    { data: newPatientsThisMonth },
     { data: paidAppointments },
     { data: paidAppointmentsPrevious },
     { count: unreadNotifications },
@@ -75,10 +57,6 @@ export default async function DoctorDashboardPage() {
       .eq('doctor_id', user.id)
       .in('status', ['scheduled', 'confirmed'])
       .gte('scheduled_at', new Date().toISOString()),
-    supabase
-      .from('investigations')
-      .select('*', { count: 'exact', head: true })
-      .eq('doctor_id', user.id),
     // Previous period for trends
     supabase
       .from('appointments')
@@ -87,20 +65,6 @@ export default async function DoctorDashboardPage() {
       .eq('status', 'completed')
       .gte('scheduled_at', previousTimeRange.start.toISOString())
       .lte('scheduled_at', previousTimeRange.end.toISOString()),
-    supabase
-      .from('appointments')
-      .select('*', { count: 'exact', head: true })
-      .eq('doctor_id', user.id)
-      .in('status', ['scheduled', 'confirmed'])
-      .gte('scheduled_at', new Date().toISOString())
-      .lt('scheduled_at', subDays(new Date(), 30).toISOString()),
-    // New patients this month
-    supabase
-      .from('appointments')
-      .select('patient_id')
-      .eq('doctor_id', user.id)
-      .gte('created_at', timeRange.start.toISOString())
-      .lte('created_at', timeRange.end.toISOString()),
     // Revenue
     supabase
       .from('appointments')
@@ -136,23 +100,13 @@ export default async function DoctorDashboardPage() {
     ? Math.round(((totalRevenue - previousRevenue) / previousRevenue) * 100)
     : totalRevenue > 0 ? 100 : 0
 
-  // Calculate metrics
-  const uniquePatientIds = new Set((newPatientsThisMonth || [])?.map((apt: any) => apt.patient_id) || [])
-  const newPatientsCount = uniquePatientIds.size
-  const repeatVisitRate = await getRepeatVisitRate(user.id)
-  const completionRate = await getCompletionRate(user.id, timeRange.start, timeRange.end)
-  const cancellationRate = await getCancellationRate(user.id, timeRange.start, timeRange.end)
-
-  // Calculate average consultation fee
-  const avgConsultationFee = totalConsultations && totalConsultations > 0
-    ? totalRevenue / totalConsultations
-    : Number(profile.consultation_fee || 0)
+  // Metrics removed - no longer displaying additional summary cards
 
   const stats = [
     {
       title: 'Total Consultations',
       value: totalConsultations || 0,
-      icon: Stethoscope,
+      iconName: 'Stethoscope',
       color: 'text-teal-600',
       bgColor: 'bg-teal-50',
       trend: { value: consultationsTrend, period: 'last month' },
@@ -162,7 +116,7 @@ export default async function DoctorDashboardPage() {
     {
       title: 'Upcoming Appointments',
       value: upcomingAppointments || 0,
-      icon: Calendar,
+      iconName: 'Calendar',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       realtimeTable: 'appointments' as const,
@@ -171,7 +125,7 @@ export default async function DoctorDashboardPage() {
     {
       title: 'Total Revenue',
       value: `₦${Math.round(totalRevenue / 100).toLocaleString()}`,
-      icon: DollarSign,
+      iconName: 'DollarSign',
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       trend: { value: revenueTrend, period: 'last month' },
@@ -179,7 +133,7 @@ export default async function DoctorDashboardPage() {
     {
       title: 'Total Patients',
       value: totalPatients || 0,
-      icon: Users,
+      iconName: 'Users',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
     },
@@ -196,77 +150,11 @@ export default async function DoctorDashboardPage() {
           <Link href="/doctor/appointments">
             <Button variant="outline">View All Appointments</Button>
           </Link>
-          <Link href="/doctor/analytics">
-            <Button variant="outline">View Analytics</Button>
-          </Link>
         </div>
       </div>
 
       {/* Statistics Cards with Real-time Updates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
-          <MetricsCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            bgColor={stat.bgColor}
-            trend={stat.trend}
-            realtimeTable={stat.realtimeTable}
-            realtimeFilter={stat.realtimeFilter}
-          />
-        ))}
-      </div>
-
-      {/* Additional Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">New Patients (30d)</p>
-              <p className="text-2xl font-bold mt-2">{newPatientsCount}</p>
-            </div>
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Repeat Visit Rate</p>
-              <p className="text-2xl font-bold mt-2">{repeatVisitRate}%</p>
-            </div>
-            <div className="bg-purple-50 p-3 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Completion Rate</p>
-              <p className="text-2xl font-bold mt-2">{completionRate}%</p>
-              <p className="text-xs text-gray-500 mt-1">Cancellation: {cancellationRate}%</p>
-            </div>
-            <div className="bg-green-50 p-3 rounded-lg">
-              <Clock className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Avg Consultation Fee</p>
-              <p className="text-2xl font-bold mt-2">₦{Math.round(avgConsultationFee / 100).toLocaleString()}</p>
-            </div>
-            <div className="bg-teal-50 p-3 rounded-lg">
-              <DollarSign className="h-6 w-6 text-teal-600" />
-            </div>
-          </div>
-        </Card>
-      </div>
+      <DoctorMetricsGrid stats={stats} />
 
       {/* Quick Actions with Recent Activity */}
       <DoctorDashboardClient 

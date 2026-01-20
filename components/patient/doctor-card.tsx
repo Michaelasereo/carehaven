@@ -1,11 +1,13 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Stethoscope, Star, Calendar } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { getConsultationPriceClient } from '@/lib/admin/system-settings-client'
 
 interface DoctorCardProps {
   doctor: {
@@ -15,12 +17,25 @@ interface DoctorCardProps {
     bio: string | null
     consultation_fee: number | null
     avatar_url: string | null
-    years_experience: number | null
+    years_experience: number | string | null
   }
   onSelect?: (doctorId: string) => void
 }
 
 export function DoctorCard({ doctor, onSelect }: DoctorCardProps) {
+  const [universalPrice, setUniversalPrice] = useState<number | null>(null)
+
+  useEffect(() => {
+    // Fetch universal consultation price from system settings
+    getConsultationPriceClient()
+      .then(price => setUniversalPrice(price))
+      .catch(error => {
+        console.error('Error fetching universal consultation price:', error)
+        // Fallback to doctor's fee if universal price fetch fails
+        setUniversalPrice(null)
+      })
+  }, [])
+
   const initials = doctor.full_name
     ?.split(' ')
     .map((n) => n[0])
@@ -61,7 +76,15 @@ export function DoctorCard({ doctor, onSelect }: DoctorCardProps) {
           {doctor.years_experience && (
             <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
               <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <span>{doctor.years_experience} years experience</span>
+              <span>
+                {typeof doctor.years_experience === 'string'
+                  ? doctor.years_experience === '1-5'
+                    ? '1-5 years experience'
+                    : doctor.years_experience === '>5'
+                    ? '5+ years experience'
+                    : `${doctor.years_experience} years experience`
+                  : `${doctor.years_experience} years experience`}
+              </span>
             </div>
           )}
 
@@ -73,9 +96,11 @@ export function DoctorCard({ doctor, onSelect }: DoctorCardProps) {
             <div>
               <p className="text-xs text-gray-500">Consultation Fee</p>
               <p className="font-semibold text-teal-600">
-                {doctor.consultation_fee
-                  ? formatCurrency(doctor.consultation_fee, 'NGN')
-                  : 'N/A'}
+                {universalPrice !== null
+                  ? formatCurrency(universalPrice, 'NGN')
+                  : doctor.consultation_fee
+                    ? formatCurrency(doctor.consultation_fee, 'NGN')
+                    : 'N/A'}
               </p>
             </div>
 

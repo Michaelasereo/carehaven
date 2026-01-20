@@ -1,22 +1,36 @@
 /**
- * Script to clear all users from Supabase auth and related database tables
- * EXCEPT admin and super_admin users
- * Use this to reset your database while keeping admin access
+ * Script to Clear All Users EXCEPT Admin and Super Admin
+ * ============================================================
+ * 
+ * This script will:
+ * 1. Preserve all users with role 'admin' or 'super_admin'
+ * 2. Delete all other users and their related data
+ * 3. Handle both users with profiles and orphaned auth users
+ * 
+ * Usage:
+ *   npx tsx scripts/clear-users-except-admin.ts
+ * 
+ * Safety:
+ * - Requires confirmation before deletion
+ * - Shows preview of what will be deleted
+ * - Verifies admin users are preserved
+ * 
+ * ============================================================
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { PrismaClient } from '@prisma/client'
+import { createClient } from '@supabase/supabase-js'
 import * as dotenv from 'dotenv'
 
 // Load environment variables
 dotenv.config({ path: '.env.local' })
 
+const prisma = new PrismaClient()
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 )
-
-const prisma = new PrismaClient()
 
 async function clearUsersExceptAdmin() {
   console.log('🧹 Clearing all users EXCEPT admin and super_admin...')
@@ -26,183 +40,237 @@ async function clearUsersExceptAdmin() {
   console.log()
 
   try {
-    // Step 1: Get all users from Supabase auth
-    console.log('Step 1: Fetching all users from Supabase auth...')
-    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers()
-    
-    if (listError) {
-      console.error('❌ Error fetching users:', listError)
-      throw listError
-    }
-
-    if (!users || users.length === 0) {
-      console.log('ℹ️  No users found in Supabase auth')
-      return
-    }
-
-    console.log(`   Found ${users.length} total user(s)`)
-
-    // Step 2: Get profiles to determine which users are admins
-    console.log('\nStep 2: Checking user roles...')
-    const { data: profiles, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, email, role')
-    
-    if (profileError) {
-      console.error('❌ Error fetching profiles:', profileError)
-      throw profileError
-    }
-
-    // Create a map of user IDs to roles
-    const userRoleMap = new Map<string, string>()
-    if (profiles) {
-      for (const profile of profiles) {
-        userRoleMap.set(profile.id, profile.role)
-      }
-    }
-
-    // Filter out admin and super_admin users
-    const adminUserIds = new Set<string>()
-    const nonAdminUsers = users.filter(user => {
-      const role = userRoleMap.get(user.id)
-      if (role === 'admin' || role === 'super_admin') {
-        adminUserIds.add(user.id)
-        return false // Don't delete admin users
-      }
-      return true // Delete non-admin users
+    // Step 1: Get all admin users
+    console.log('Step 1: Identifying admin users...')
+    const adminProfiles = await prisma.profile.findMany({
+      where: {
+        role: {
+          in: ['admin', 'super_admin'],
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
     })
 
-    if (adminUserIds.size > 0) {
-      console.log(`   🔒 Found ${adminUserIds.size} admin/super_admin user(s) - will be preserved`)
+    const adminUserIds = new Set(adminProfiles.map(p => p.id))
+
+    if (adminProfiles.length > 0) {
+      console.log(`   🔒 Found ${adminProfiles.length} admin/super_admin user(s) - will be preserved:`)
+      adminProfiles.forEach(admin => {
+        console.log(`      - ${admin.email || 'unknown'} (${admin.role})`)
+      })
+    } else {
+      console.log('   ⚠️  WARNING: No admin users found!')
     }
 
-    if (nonAdminUsers.length === 0) {
+    // Step 2: Get all non-admin profiles
+    console.log('\nStep 2: Identifying non-admin users with profiles...')
+    const nonAdminProfiles = await prisma.profile.findMany({
+      where: {
+        role: {
+          notIn: ['admin', 'super_admin'],
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
+    })
+
+    // Step 2b: Check for orphaned auth users (users without profiles)
+    console.log('   Checking for orphaned auth users (users without profiles)...')
+    const { data: { users: allAuthUsers }, error: authListError } = await supabase.auth.admin.listUsers()
+    
+    let orphanedUsers: Array<{ id: string; email: string }> = []
+    if (!authListError && allAuthUsers) {
+      orphanedUsers = allAuthUsers
+        .filter(user => !adminUserIds.has(user.id) && !nonAdminProfiles.some(p => p.id === user.id))
+        .map(user => ({ id: user.id, email: user.email || 'unknown' }))
+      
+      if (orphanedUsers.length > 0) {
+        console.log(`   Found ${orphanedUsers.length} orphaned auth user(s):`)
+        orphanedUsers.slice(0, 10).forEach(user => {
+          console.log(`      - ${user.email} (orphaned)`)
+        })
+        if (orphanedUsers.length > 10) {
+          console.log(`      ... and ${orphanedUsers.length - 10} more`)
+        }
+      }
+    }
+
+    const totalToDelete = nonAdminProfiles.length + orphanedUsers.length
+
+    if (totalToDelete === 0) {
       console.log('   ℹ️  No non-admin users found to delete')
       return
     }
 
-    console.log(`   🗑️  Will delete ${nonAdminUsers.length} non-admin user(s)`)
+    console.log(`\n   🗑️  Total users to delete: ${totalToDelete}`)
+    console.log(`      - Users with profiles: ${nonAdminProfiles.length}`)
+    console.log(`      - Orphaned auth users: ${orphanedUsers.length}`)
+
+    // Step 3: Delete users with profiles using Prisma
+    console.log('\nStep 3: Deleting users with profiles...')
+    console.log('   (Prisma will automatically cascade delete all related data)')
     
-    const userIdsToDelete = nonAdminUsers.map(u => u.id)
+    let successCount = 0
+    let failCount = 0
+    const failedUsers: Array<{ email: string; error: string }> = []
 
-    // Step 3: Delete related database records first (to avoid foreign key issues)
-    if (userIdsToDelete.length > 0) {
-      console.log('\nStep 3: Deleting related database records...')
-      
-      // Delete from profiles
-      const { error: profileDeleteError } = await supabase
-        .from('profiles')
-        .delete()
-        .in('id', userIdsToDelete)
-      
-      if (profileDeleteError) {
-        console.error('❌ Error deleting profiles:', profileDeleteError)
-      } else {
-        console.log(`   ✅ Deleted ${userIdsToDelete.length} profile(s)`)
-      }
+    // Step 3a: Delete users with profiles using Prisma
+    for (let i = 0; i < nonAdminProfiles.length; i++) {
+      const profile = nonAdminProfiles[i]
+      console.log(`\n   [${i + 1}/${nonAdminProfiles.length}] Processing: ${profile.email || 'unknown'} (${profile.role})`)
 
-      // Delete email verification codes
       try {
-        const { error: codeError } = await supabase
-          .from('email_verification_codes')
-          .delete()
-          .in('user_id', userIdsToDelete)
+        // Delete using Prisma (this will cascade delete all related data)
+        console.log(`      Deleting profile and related data via Prisma...`)
+        await prisma.profile.delete({
+          where: { id: profile.id },
+        })
         
-        if (codeError) {
-          if (codeError.message?.includes('does not exist') || codeError.message?.includes('schema cache')) {
-            console.log('   ℹ️  Verification codes table does not exist yet (migration not run)')
-          } else {
-            console.warn('⚠️  Error deleting verification codes:', codeError.message)
+        console.log(`      ✅ Deleted profile and related data`)
+
+        // Delete from Supabase auth
+        console.log(`      Deleting from Supabase auth...`)
+        const { error: authError } = await supabase.auth.admin.deleteUser(profile.id)
+        
+        if (authError) {
+          console.log(`      ⚠️  Auth deletion error: ${authError.message}`)
+          // Profile is already deleted, continue
+        } else {
+          console.log(`      ✅ Deleted from auth`)
+        }
+
+        successCount++
+
+      } catch (error: any) {
+        console.error(`      ❌ Failed: ${error.message}`)
+        failCount++
+        failedUsers.push({
+          email: profile.email || 'unknown',
+          error: error.message || 'Unknown error'
+        })
+      }
+
+      // Small delay to avoid overwhelming the database
+      await new Promise(resolve => setTimeout(resolve, 200))
+    }
+
+    // Step 3b: Delete orphaned auth users using SQL (more reliable for orphaned users)
+    if (orphanedUsers.length > 0) {
+      console.log(`\n   Deleting ${orphanedUsers.length} orphaned auth user(s)...`)
+      console.log('   (These users have no profiles, deleting directly from auth)')
+      
+      for (let i = 0; i < orphanedUsers.length; i++) {
+        const user = orphanedUsers[i]
+        console.log(`\n   [${i + 1}/${orphanedUsers.length}] Processing orphaned user: ${user.email}`)
+
+        try {
+          // Delete audit logs first (has FK constraint)
+          await prisma.$executeRaw`
+            DELETE FROM public.audit_logs WHERE user_id = ${user.id}::uuid
+          `.catch(() => {}) // Ignore errors if table doesn't exist
+
+          // Delete from auth tables in order
+          await prisma.$executeRaw`
+            DELETE FROM auth.sessions WHERE user_id = ${user.id}::uuid
+          `.catch(() => {})
+
+          await prisma.$executeRaw`
+            DELETE FROM auth.identities WHERE user_id = ${user.id}::uuid
+          `.catch(() => {})
+
+          // Finally delete the user
+          const { error: authError } = await supabase.auth.admin.deleteUser(user.id)
+          
+          if (authError) {
+            throw new Error(authError.message)
           }
-        } else {
-          console.log('   ✅ Deleted verification codes')
+          
+          console.log(`      ✅ Deleted orphaned auth user`)
+          successCount++
+        } catch (error: any) {
+          console.error(`      ❌ Failed: ${error.message}`)
+          failCount++
+          failedUsers.push({
+            email: user.email,
+            error: error.message || 'Unknown error'
+          })
         }
-      } catch (err) {
-        console.log('   ℹ️  Verification codes table does not exist yet')
-      }
 
-      // Delete email verification tokens
-      const { error: tokenError } = await supabase
-        .from('email_verification_tokens')
-        .delete()
-        .in('user_id', userIdsToDelete)
-      
-      if (tokenError) {
-        console.warn('⚠️  Error deleting verification tokens:', tokenError.message)
-      } else {
-        console.log('   ✅ Deleted verification tokens')
-      }
-
-      // Delete notifications
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .delete()
-        .in('user_id', userIdsToDelete)
-      
-      if (notificationError) {
-        console.warn('⚠️  Error deleting notifications:', notificationError.message)
-      } else {
-        console.log('   ✅ Deleted notifications')
-      }
-
-      // Delete messages (sent and received)
-      const { error: messageError } = await supabase
-        .from('messages')
-        .delete()
-        .or(`sender_id.in.(${userIdsToDelete.join(',')}),receiver_id.in.(${userIdsToDelete.join(',')})`)
-      
-      if (messageError) {
-        console.warn('⚠️  Error deleting messages:', messageError.message)
-      } else {
-        console.log('   ✅ Deleted messages')
-      }
-
-      // Delete appointments where patient or doctor is being deleted
-      // But keep appointments where both patient and doctor are admins (though unlikely)
-      const { error: appointmentError } = await supabase
-        .from('appointments')
-        .delete()
-        .or(`patient_id.in.(${userIdsToDelete.join(',')}),doctor_id.in.(${userIdsToDelete.join(',')})`)
-      
-      if (appointmentError) {
-        console.warn('⚠️  Error deleting appointments:', appointmentError.message)
-      } else {
-        console.log('   ✅ Deleted related appointments')
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
     }
 
-    // Step 4: Delete users from Supabase auth
-    if (nonAdminUsers.length > 0) {
-      console.log('\nStep 4: Deleting users from Supabase auth...')
-      
-      for (const user of nonAdminUsers) {
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id)
-        
-        if (deleteError) {
-          console.error(`   ❌ Error deleting user ${user.email}:`, deleteError.message)
-        } else {
-          console.log(`   ✅ Deleted user: ${user.email}`)
-        }
-      }
-    }
-
-    // Step 5: Summary
+    // Step 4: Summary
     console.log('\n' + '='.repeat(60))
-    console.log('✅ Cleanup completed successfully!')
-    console.log(`   Deleted: ${nonAdminUsers.length} non-admin user(s)`)
-    console.log(`   Preserved: ${adminUserIds.size} admin/super_admin user(s)`)
+    console.log('✅ Cleanup completed!')
+    console.log(`   ✅ Successfully deleted: ${successCount} user(s)`)
+    if (failCount > 0) {
+      console.log(`   ❌ Failed to delete: ${failCount} user(s)`)
+      console.log('\n   Failed users:')
+      failedUsers.forEach(({ email, error }) => {
+        console.log(`      - ${email}: ${error}`)
+      })
+    }
+    console.log(`   🔒 Preserved: ${adminProfiles.length} admin/super_admin user(s)`)
     console.log('='.repeat(60))
 
-    // List preserved admin users
-    if (adminUserIds.size > 0) {
-      console.log('\n🔒 Preserved admin users:')
-      for (const userId of adminUserIds) {
-        const user = users.find(u => u.id === userId)
-        const role = userRoleMap.get(userId)
-        if (user) {
-          console.log(`   - ${user.email} (${role})`)
+    // Step 5: Verify admin users still exist
+    if (adminProfiles.length > 0) {
+      console.log('\n🔒 Verifying preserved admin users:')
+      for (const admin of adminProfiles) {
+        const stillExists = await prisma.profile.findUnique({
+          where: { id: admin.id },
+          select: { id: true, email: true, role: true },
+        })
+
+        if (stillExists) {
+          console.log(`   ✅ ${stillExists.email} (${stillExists.role}) - OK`)
+        } else {
+          console.log(`   ⚠️  ${admin.email} - Profile not found!`)
         }
       }
+    }
+
+    // Step 6: Show final count
+    const remainingCount = await prisma.profile.count({
+      where: {
+        role: {
+          notIn: ['admin', 'super_admin'],
+        },
+      },
+    })
+
+    const adminCount = await prisma.profile.count({
+      where: {
+        role: {
+          in: ['admin', 'super_admin'],
+        },
+      },
+    })
+
+    // Check for remaining orphaned users
+    const { data: { users: remainingAuthUsers } } = await supabase.auth.admin.listUsers()
+    const remainingOrphanedCount = remainingAuthUsers?.filter(
+      user => !adminUserIds.has(user.id) && 
+      !(await prisma.profile.findUnique({ where: { id: user.id } }))
+    ).length || 0
+
+    console.log('\n📊 Final Statistics:')
+    console.log(`   Admin users: ${adminCount}`)
+    console.log(`   Non-admin profiles: ${remainingCount}`)
+    console.log(`   Orphaned auth users: ${remainingOrphanedCount}`)
+    console.log(`   Total users in auth: ${remainingAuthUsers?.length || 0}`)
+
+    if (remainingCount > 0 || remainingOrphanedCount > 0) {
+      console.log('\n   ⚠️  Some users could not be deleted. You may need to run the SQL script:')
+      console.log('      scripts/delete-orphaned-auth-users.sql')
     }
 
   } catch (error: any) {
@@ -216,12 +284,29 @@ async function clearUsersExceptAdmin() {
 
 // Run the script
 console.log('Starting user cleanup (preserving admins)...\n')
-clearUsersExceptAdmin()
-  .then(() => {
-    console.log('\n✅ Cleanup completed successfully')
+
+// Add confirmation prompt
+const readline = require('readline')
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+})
+
+rl.question('⚠️  Are you sure you want to delete all non-admin users? (yes/no): ', async (answer: string) => {
+  if (answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y') {
+    rl.close()
+    await clearUsersExceptAdmin()
+      .then(() => {
+        console.log('\n✅ Cleanup completed successfully')
+        process.exit(0)
+      })
+      .catch((error) => {
+        console.error('\n❌ Cleanup failed:', error)
+        process.exit(1)
+      })
+  } else {
+    console.log('\n❌ Cancelled. No users were deleted.')
+    rl.close()
     process.exit(0)
-  })
-  .catch((error) => {
-    console.error('\n❌ Cleanup failed:', error)
-    process.exit(1)
-  })
+  }
+})

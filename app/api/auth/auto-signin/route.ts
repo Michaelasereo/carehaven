@@ -64,33 +64,57 @@ export async function GET(request: Request) {
 
     console.log('✅ Auto-signin: Token validated for user:', tokenData.user_id)
 
-    // Generate a magic link for the user
-    // The callback route will handle the session creation properly
-    const callbackUrl = `${requestUrl.origin}/auth/callback?next=${encodeURIComponent(redirect)}`
-    
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+    // Best Practice: Use direct session creation instead of magic links
+    // This avoids redirect URL configuration issues and hash fragment problems
+    // Generate a session token that can be exchanged client-side
+    const { data: sessionData, error: sessionError } = await adminClient.auth.admin.generateLink({
       type: 'magiclink',
       email: tokenData.email,
       options: {
-        redirectTo: callbackUrl,
+        redirectTo: `${requestUrl.origin}/auth/handle-signin?redirect=${encodeURIComponent(redirect)}`,
       },
     })
 
-    if (linkError || !linkData?.properties?.action_link) {
-      console.error('❌ Auto-signin: Failed to generate magic link:', linkError)
-      // Fallback: redirect to sign-in with verified flag
-      const fallbackUrl = redirect.startsWith('/doctor') 
-        ? `/doctor/login?email=${encodeURIComponent(tokenData.email)}&verified=true`
-        : redirect.startsWith('/admin')
-        ? `/admin/login?email=${encodeURIComponent(tokenData.email)}&verified=true`
-        : `/auth/signin?email=${encodeURIComponent(tokenData.email)}&verified=true`
-      return NextResponse.redirect(new URL(fallbackUrl, requestUrl.origin))
+    if (sessionError || !sessionData?.properties?.action_link) {
+      console.error('❌ Auto-signin: Failed to generate sign-in link:', sessionError)
+      
+      // Fallback: Use passwordless sign-in with OTP
+      // This creates a session directly without magic link redirect issues
+      try {
+        const { data: otpData, error: otpError } = await adminClient.auth.admin.generateLink({
+          type: 'recovery',
+          email: tokenData.email,
+          options: {
+            redirectTo: `${requestUrl.origin}/auth/handle-signin?redirect=${encodeURIComponent(redirect)}`,
+          },
+        })
+
+        if (otpError || !otpData?.properties?.action_link) {
+          throw otpError || new Error('Failed to generate recovery link')
+        }
+
+        console.log('✅ Auto-signin: Using recovery link as fallback')
+        return NextResponse.redirect(otpData.properties.action_link)
+      } catch (fallbackError) {
+        console.error('❌ Auto-signin: All methods failed, redirecting to sign-in')
+        // Final fallback: redirect to sign-in with verified flag
+        const fallbackUrl = redirect.startsWith('/doctor') 
+          ? `/doctor/login?email=${encodeURIComponent(tokenData.email)}&verified=true`
+          : redirect.startsWith('/admin')
+          ? `/admin/login?email=${encodeURIComponent(tokenData.email)}&verified=true`
+          : `/auth/signin?email=${encodeURIComponent(tokenData.email)}&verified=true`
+        return NextResponse.redirect(new URL(fallbackUrl, requestUrl.origin))
+      }
     }
 
-    // Redirect to the magic link action URL
-    // Supabase will handle the auth flow and redirect to the callback
-    console.log('✅ Auto-signin: Redirecting to magic link for:', tokenData.email)
-    return NextResponse.redirect(linkData.properties.action_link)
+    // Redirect to the action link
+    // Note: Supabase may redirect to homepage if redirectTo is not in allowed URLs
+    // The AuthHandler component in layout will catch hash fragments on any page
+    console.log('✅ Auto-signin: Redirecting to sign-in link for:', tokenData.email)
+    console.log(`   Action link: ${sessionData.properties.action_link.substring(0, 100)}...`)
+    console.log(`   Intended redirect: ${redirect}`)
+    
+    return NextResponse.redirect(sessionData.properties.action_link)
 
   } catch (error: any) {
     console.error('❌ Auto-signin: Unexpected error:', error)

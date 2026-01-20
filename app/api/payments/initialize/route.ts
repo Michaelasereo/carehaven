@@ -4,6 +4,12 @@ import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      return NextResponse.json({ 
+        error: 'Payment service is not configured. Please contact support.' 
+      }, { status: 500 })
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -31,7 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ authorization_url: payment.data.authorization_url })
   } catch (error) {
     console.error('Error initializing payment:', error)
-    return NextResponse.json({ error: 'Failed to initialize payment' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Failed to initialize payment'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 

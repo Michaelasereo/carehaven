@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Camera, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -71,6 +73,13 @@ export function DoctorEnrollmentForm() {
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [emailChecking, setEmailChecking] = useState(false)
+  const [emailExists, setEmailExists] = useState(false)
+  const emailCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     register,
@@ -86,6 +95,102 @@ export function DoctorEnrollmentForm() {
   })
 
   const agreeToTerms = watch('agreeToTerms')
+  const emailValue = watch('email')
+  const firstName = watch('firstName')
+  const lastName = watch('lastName')
+
+  const handlePhotoUpload = async (file: File) => {
+    setIsUploadingPhoto(true)
+    
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file')
+        setIsUploadingPhoto(false)
+        return
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size must be less than 5MB')
+        setIsUploadingPhoto(false)
+        return
+      }
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file)
+      setAvatarUrl(previewUrl)
+      setAvatarFile(file)
+    } catch (error: any) {
+      console.error('Error processing photo:', error)
+      setError('Failed to process photo. Please try again.')
+    } finally {
+      setIsUploadingPhoto(false)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handlePhotoUpload(file)
+    }
+  }
+
+  // Debounced email availability check
+  const checkEmailAvailability = useCallback(async (email: string) => {
+    if (!email || !email.includes('@')) {
+      setEmailExists(false)
+      setEmailChecking(false)
+      return
+    }
+
+    // Clear existing timeout
+    if (emailCheckTimeoutRef.current) {
+      clearTimeout(emailCheckTimeoutRef.current)
+    }
+
+    setEmailChecking(true)
+
+    // Debounce: wait 500ms after user stops typing
+    emailCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/auth/check-email-available?email=${encodeURIComponent(email.trim().toLowerCase())}`
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          setEmailExists(data.exists || false)
+        } else {
+          // If check fails, don't block submission (let server-side validation handle it)
+          setEmailExists(false)
+        }
+      } catch (error) {
+        // If check fails, don't block submission
+        console.warn('Email availability check failed:', error)
+        setEmailExists(false)
+      } finally {
+        setEmailChecking(false)
+      }
+    }, 500)
+  }, [])
+
+  // Check email when it changes
+  useEffect(() => {
+    if (emailValue) {
+      checkEmailAvailability(emailValue)
+    } else {
+      setEmailExists(false)
+      setEmailChecking(false)
+    }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (emailCheckTimeoutRef.current) {
+        clearTimeout(emailCheckTimeoutRef.current)
+      }
+    }
+  }, [emailValue, checkEmailAvailability])
 
   const onSubmit = async (data: EnrollmentFormData) => {
     setLoading(true)
@@ -111,6 +216,7 @@ export function DoctorEnrollmentForm() {
         console.error('Signup error details:', {
           message: signUpError.message,
           status: signUpError.status,
+          code: (signUpError as any).code,
           name: signUpError.name,
           error: signUpError,
         })
@@ -120,60 +226,128 @@ export function DoctorEnrollmentForm() {
           console.error('422 Error - Full error object:', JSON.stringify(signUpError, null, 2))
         }
         
-        // Handle specific error cases
-        if (signUpError.message.includes('already registered') || 
+        // Improved error handling: Check error code first (more reliable)
+        const errorCode = (signUpError as any).code
+        
+        // Check for "email already exists" - check code first, then status, then message
+        if (errorCode === 'user_already_exists' || 
+            signUpError.status === 422 ||
+            signUpError.message.includes('already registered') || 
             signUpError.message.includes('already exists') ||
             signUpError.message.includes('User already registered')) {
           setError('An account with this email already exists. Please sign in instead.')
           setLoading(false)
           return
-        } else if (signUpError.message.includes('Invalid email') || 
-                   signUpError.message.includes('email format')) {
+        } 
+        
+        // Check for invalid email format
+        if (signUpError.message.includes('Invalid email') || 
+            signUpError.message.includes('email format')) {
           setError('Please enter a valid email address.')
           setLoading(false)
           return
-        } else if (signUpError.message.includes('Password') || 
-                   signUpError.message.includes('password')) {
+        } 
+        
+        // Check for password errors
+        if (signUpError.message.includes('Password') || 
+            signUpError.message.includes('password')) {
           setError('Password does not meet requirements. Please check and try again.')
           setLoading(false)
           return
-        } else if (signUpError.status === 422) {
-          // 422 Unprocessable Entity - usually means validation failed
+        } 
+        
+        // Handle 422 status (validation errors)
+        if (signUpError.status === 422) {
           setError(signUpError.message || 'Invalid signup data. Please check all fields and try again.')
           setLoading(false)
           return
+        } 
+        
+        // Ignore email sending errors since we handle verification via codes
+        if (signUpError.message.includes('Error sending confirmation email') || 
+            signUpError.message.includes('email confirmation') ||
+            signUpError.message.includes('Failed to send email')) {
+          console.warn('Supabase email confirmation error ignored - using verification codes instead')
+          // Continue with enrollment flow even if Supabase email fails
         } else {
-          // Ignore email sending errors since we handle verification via codes
-          if (signUpError.message.includes('Error sending confirmation email') || 
-              signUpError.message.includes('email confirmation') ||
-              signUpError.message.includes('Failed to send email')) {
-            console.warn('Supabase email confirmation error ignored - using verification codes instead')
-            // Continue with enrollment flow even if Supabase email fails
-          } else {
-            setError(signUpError.message || 'Failed to create account. Please try again.')
-            setLoading(false)
-            return
-          }
+          setError(signUpError.message || 'Failed to create account. Please try again.')
+          setLoading(false)
+          return
         }
       }
 
       if (signUpData.user) {
+        // Upload profile picture if provided
+        let avatarUrlToSave: string | null = null
+        if (avatarFile) {
+          try {
+            const fileExt = avatarFile.name.split('.').pop()
+            const fileName = `${signUpData.user.id}/${Date.now()}.${fileExt}`
+            
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+              .from('avatars')
+              .upload(fileName, avatarFile, {
+                cacheControl: '3600',
+                upsert: false,
+              })
+
+            if (!uploadError) {
+              // Get public URL
+              const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(fileName)
+              avatarUrlToSave = publicUrl
+            } else {
+              console.error('Error uploading avatar:', uploadError)
+              // Continue enrollment even if avatar upload fails
+            }
+          } catch (uploadErr) {
+            console.error('Error uploading avatar:', uploadErr)
+            // Continue enrollment even if avatar upload fails
+          }
+        }
+
         // Update profile with enrollment details
+        // Doctors have completed their profile during enrollment, so mark as complete
+        // Doctors are automatically verified on enrollment
+        const profileUpdateData: any = {
+          full_name: `${data.firstName} ${data.lastName}`,
+          gender: data.gender,
+          specialty: data.specialty,
+          license_number: `${data.licenseType}-${Date.now()}`, // Generate temporary license number
+          license_verified: true, // Auto-verify doctors on enrollment
+          bio: data.professionalSummary,
+          role: 'doctor',
+          profile_completed: true, // Doctors complete profile during enrollment
+          onboarded_at: new Date().toISOString(),
+        }
+
+        if (avatarUrlToSave) {
+          profileUpdateData.avatar_url = avatarUrlToSave
+        }
+
+        // Use upsert to ensure profile is created/updated with verified status
+        // Wait a brief moment to ensure trigger has created the profile
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({
-            full_name: `${data.firstName} ${data.lastName}`,
-            gender: data.gender,
-            specialty: data.specialty,
-            license_number: `${data.licenseType}-${Date.now()}`, // Generate temporary license number
-            license_verified: false,
-            bio: data.professionalSummary,
-            role: 'doctor',
-          })
-          .eq('id', signUpData.user.id)
+          .upsert(
+            {
+              id: signUpData.user.id,
+              ...profileUpdateData,
+            },
+            {
+              onConflict: 'id',
+            }
+          )
 
         if (profileError) {
           console.error('Error updating profile:', profileError)
+          setError('Failed to update profile. Please try again.')
+          setLoading(false)
+          return
         }
 
         // Send verification code via Brevo SMTP
@@ -278,14 +452,30 @@ export function DoctorEnrollmentForm() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="email">Email Address *</Label>
-            <Input
-              id="email"
-              type="email"
-              {...register('email')}
-              placeholder="john.doe@example.com"
-            />
+            <div className="relative">
+              <Input
+                id="email"
+                type="email"
+                {...register('email')}
+                placeholder="john.doe@example.com"
+                className={emailExists ? 'border-red-500' : ''}
+              />
+              {emailChecking && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <svg className="animate-spin h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              )}
+            </div>
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+            )}
+            {emailExists && !errors.email && (
+              <p className="mt-1 text-sm text-red-600">
+                This email is already registered. Please sign in instead or use a different email.
+              </p>
             )}
           </div>
 
@@ -429,6 +619,53 @@ export function DoctorEnrollmentForm() {
           )}
         </div>
 
+        {/* Profile Picture Upload */}
+        <div>
+          <Label>Profile Picture (Optional)</Label>
+          <div className="flex items-center gap-6 mt-2">
+            <div className="relative">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={avatarUrl || undefined} />
+                <AvatarFallback className="bg-teal-100 text-teal-700 text-lg font-semibold">
+                  {firstName?.[0]?.toUpperCase() || 'D'}{lastName?.[0]?.toUpperCase() || ''}
+                </AvatarFallback>
+              </Avatar>
+              <Button
+                type="button"
+                size="icon"
+                className="absolute bottom-0 right-0 rounded-full"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+              >
+                {isUploadingPhoto ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+              >
+                {isUploadingPhoto ? 'Processing...' : avatarUrl ? 'Change Photo' : 'Upload Photo'}
+              </Button>
+              <p className="text-xs text-gray-500">Max size: 5MB. Formats: JPG, PNG, GIF, WebP</p>
+            </div>
+          </div>
+        </div>
+
         {/* Terms Agreement */}
         <div className="flex items-start gap-2">
           <input
@@ -457,11 +694,11 @@ export function DoctorEnrollmentForm() {
         <div className="flex justify-end">
           <Button
             type="submit"
-            disabled={loading || !agreeToTerms}
+            disabled={loading || !agreeToTerms || emailExists || emailChecking}
             className="bg-teal-600 hover:bg-teal-700"
             size="lg"
           >
-            {loading ? 'Submitting...' : 'Complete Enrollment'}
+            {loading ? 'Submitting...' : emailChecking ? 'Checking email...' : 'Complete Enrollment'}
           </Button>
         </div>
       </form>

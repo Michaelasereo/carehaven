@@ -1,12 +1,14 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { DoctorCard } from './doctor-card'
 import { Loader2 } from 'lucide-react'
 
 export function DoctorList({ onSelectDoctor }: { onSelectDoctor?: (doctorId: string) => void }) {
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   const { data: doctors, isLoading, error } = useQuery({
     queryKey: ['doctors'],
@@ -22,6 +24,50 @@ export function DoctorList({ onSelectDoctor }: { onSelectDoctor?: (doctorId: str
       return data || []
     },
   })
+
+  // Subscribe to real-time profile updates (bio, avatar_url, and license_verified)
+  // Also listen for INSERT events so newly enrolled doctors appear immediately
+  useEffect(() => {
+    const channel = supabase
+      .channel('doctor-profiles-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT, UPDATE, DELETE events
+          schema: 'public',
+          table: 'profiles',
+          filter: 'role=eq.doctor',
+        },
+        (payload) => {
+          // For INSERT events, new doctor was added - always invalidate
+          // For UPDATE events, only invalidate if relevant fields changed
+          // For DELETE events, invalidate to remove deleted doctors
+          if (payload.eventType === 'INSERT') {
+            // New doctor added - check if they're verified
+            const newData = payload.new as any
+            if (newData.license_verified === true) {
+              queryClient.invalidateQueries({ queryKey: ['doctors'] })
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const newData = payload.new as any
+            // Invalidate and refetch doctors to get updated bio, avatar, or verification status
+            // This ensures revoked doctors are immediately removed from the list
+            // (since the query filters by license_verified: true)
+            if (newData.bio !== undefined || newData.avatar_url !== undefined || newData.license_verified !== undefined) {
+              queryClient.invalidateQueries({ queryKey: ['doctors'] })
+            }
+          } else if (payload.eventType === 'DELETE') {
+            // Doctor deleted - refresh list
+            queryClient.invalidateQueries({ queryKey: ['doctors'] })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, queryClient])
 
   if (isLoading) {
     return (

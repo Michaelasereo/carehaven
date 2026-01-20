@@ -229,7 +229,7 @@ export async function POST(request: Request) {
 
     if (autoSigninToken) {
       // Return auto-signin URL for seamless redirect
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'
       const autoSigninUrl = `${appUrl}/api/auth/auto-signin?token=${autoSigninToken}&redirect=${encodeURIComponent(redirectPath)}`
       
       console.log('✅ Auto-signin token created, returning URL')

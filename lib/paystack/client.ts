@@ -1,7 +1,7 @@
 export async function initializePayment(amount: number, email: string, reference: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'
   if (!process.env.NEXT_PUBLIC_APP_URL) {
-    console.warn('⚠️ NEXT_PUBLIC_APP_URL is not set. Falling back to http://localhost:3000 for Paystack callback_url.')
+    console.warn('⚠️ NEXT_PUBLIC_APP_URL is not set. Falling back to https://carehaven.app for Paystack callback_url.')
   }
 
   const callbackUrl = `${appUrl}/payment/callback`

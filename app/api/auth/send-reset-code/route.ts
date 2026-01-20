@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     await storeVerificationCode(userId, email, code)
 
     // Build reset URL
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/reset-password/confirm?code=${code}&email=${encodeURIComponent(email)}`
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'}/auth/reset-password/confirm?code=${code}&email=${encodeURIComponent(email)}`
 
     // Send password reset code email via Brevo
     const emailHtml = `

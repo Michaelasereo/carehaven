@@ -19,6 +19,7 @@ export function PatientHistoryTimeline({ patientId, currentAppointmentId }: Pati
   const [appointments, setAppointments] = useState<any[]>([])
   const [prescriptions, setPrescriptions] = useState<any[]>([])
   const [investigations, setInvestigations] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,9 +49,26 @@ export function PatientHistoryTimeline({ patientId, currentAppointmentId }: Pati
           .order('created_at', { ascending: false })
           .limit(20)
 
+        // Fetch consultation notes across all appointments (including those from other doctors)
+        const { data: noteRows } = await supabase
+          .from('consultation_notes')
+          .select(`
+            *,
+            appointments!consultation_notes_appointment_id_fkey(
+              scheduled_at,
+              doctor_id,
+              profiles!appointments_doctor_id_fkey(full_name)
+            )
+          `)
+          // Critical: scope to this patient only (via the joined appointment)
+          .eq('appointments.patient_id', patientId)
+          .order('created_at', { ascending: false })
+          .limit(20)
+
         setAppointments(apts || [])
         setPrescriptions(prescs || [])
         setInvestigations(invs || [])
+        setNotes(noteRows || [])
       } catch (error) {
         console.error('Error fetching patient history:', error)
       } finally {
@@ -73,6 +91,7 @@ export function PatientHistoryTimeline({ patientId, currentAppointmentId }: Pati
           <TabsTrigger value="appointments">Appointments</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
           <TabsTrigger value="investigations">Investigations</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="appointments" className="space-y-3">
@@ -158,6 +177,61 @@ export function PatientHistoryTimeline({ patientId, currentAppointmentId }: Pati
             ))
           ) : (
             <p className="text-gray-500 text-center py-4">No investigations</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="notes" className="space-y-3">
+          {notes.length > 0 ? (
+            notes.map((note) => {
+              const apt = note.appointments
+              const scheduledAt = apt?.scheduled_at ? new Date(apt.scheduled_at) : null
+              const doctorName =
+                apt?.profiles?.full_name ||
+                'Doctor'
+
+              const preview =
+                note.diagnosis ||
+                note.assessment ||
+                note.subjective ||
+                ''
+
+              return (
+                <div key={note.id} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium">
+                        {scheduledAt ? format(scheduledAt, 'MMM d, yyyy') : 'Session'}
+                      </span>
+                      <Badge variant="secondary">{doctorName}</Badge>
+                      {note.appointment_id === currentAppointmentId && (
+                        <Badge variant="default">Current</Badge>
+                      )}
+                    </div>
+                    {note.diagnosis ? (
+                      <Badge variant="default">Diagnosis</Badge>
+                    ) : (
+                      <Badge variant="secondary">Note</Badge>
+                    )}
+                  </div>
+
+                  {preview && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {String(preview).slice(0, 220)}
+                      {String(preview).length > 220 ? '…' : ''}
+                    </p>
+                  )}
+
+                  <Link href={`/doctor/appointments/${note.appointment_id}`}>
+                    <span className="text-sm text-teal-600 hover:underline mt-2 inline-block">
+                      View Full Session →
+                    </span>
+                  </Link>
+                </div>
+              )
+            })
+          ) : (
+            <p className="text-gray-500 text-center py-4">No consultation notes</p>
           )}
         </TabsContent>
       </Tabs>

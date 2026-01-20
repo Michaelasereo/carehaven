@@ -18,8 +18,6 @@ const profileSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(1, 'Phone number is required').regex(/^[0-9+\-\s()]+$/, 'Please enter a valid phone number').optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
-  marital_status: z.string().optional(),
-  occupation: z.string().optional(),
 })
 
 type ProfileFormData = z.infer<typeof profileSchema>
@@ -34,12 +32,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const { addToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -48,8 +48,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       email: profile?.email || '',
       phone: profile?.phone || '',
       gender: profile?.gender || undefined,
-      marital_status: profile?.marital_status || '',
-      occupation: profile?.occupation || '',
     },
   })
 
@@ -138,12 +136,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
       const { error } = await supabase
         .from('profiles')
-        .update(data)
+        // Only phone is editable in MVP
+        .update({ phone: data.phone || null })
         .eq('id', user.id)
 
       if (error) throw error
 
       router.refresh()
+      setIsEditing(false)
     } catch (error) {
       console.error('Error updating profile:', error)
     } finally {
@@ -165,7 +165,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             className="absolute bottom-0 right-0 rounded-full"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingPhoto}
+            disabled={isUploadingPhoto || !isEditing}
           >
             {isUploadingPhoto ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -186,7 +186,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             type="button" 
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingPhoto}
+            disabled={isUploadingPhoto || !isEditing}
           >
             {isUploadingPhoto ? 'Uploading...' : 'Upload Profile Photo'}
           </Button>
@@ -198,8 +198,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
       <div className="grid grid-cols-2 gap-6">
         <div>
-          <Label htmlFor="full_name">First Name</Label>
-          <Input id="full_name" {...register('full_name')} />
+          <Label htmlFor="full_name">Full Name</Label>
+          <Input id="full_name" {...register('full_name')} disabled />
           {errors.full_name && (
             <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
           )}
@@ -217,6 +217,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             type="tel"
             {...register('phone')}
             placeholder="e.g., 08141234567 or +2348141234567"
+            disabled={!isEditing}
           />
           {errors.phone && (
             <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
@@ -225,28 +226,46 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
         <div>
           <Label htmlFor="gender">Gender</Label>
-          <Input id="gender" {...register('gender')} />
-        </div>
-
-        <div>
-          <Label htmlFor="marital_status">Marital Status</Label>
-          <Input id="marital_status" {...register('marital_status')} />
-        </div>
-
-        <div>
-          <Label htmlFor="occupation">Occupation</Label>
-          <Input id="occupation" {...register('occupation')} />
+          <Input id="gender" {...register('gender')} disabled />
         </div>
       </div>
 
       <div className="flex justify-end">
-        <Button
-          type="submit"
-          className="bg-teal-600 hover:bg-teal-700"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Saving...' : 'Save Changes'}
-        </Button>
+        {!isEditing ? (
+          <Button
+            type="button"
+            className="bg-teal-600 hover:bg-teal-700"
+            onClick={() => setIsEditing(true)}
+          >
+            Edit
+          </Button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset({
+                  full_name: profile?.full_name || '',
+                  email: profile?.email || '',
+                  phone: profile?.phone || '',
+                  gender: profile?.gender || undefined,
+                })
+                setIsEditing(false)
+              }}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-teal-600 hover:bg-teal-700"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        )}
       </div>
     </form>
   )

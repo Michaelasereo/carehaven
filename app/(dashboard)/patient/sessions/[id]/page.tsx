@@ -13,6 +13,7 @@ import {
   ArrowLeft
 } from 'lucide-react'
 import Link from 'next/link'
+import { ViewResultsLink } from '@/components/investigations/view-results-link'
 
 export default async function SessionDetailPage({
   params,
@@ -310,14 +311,7 @@ export default async function SessionDetailPage({
                 )}
                 {investigation.results_url && (
                   <div className="mt-2">
-                    <a
-                      href={investigation.results_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-teal-600 hover:underline"
-                    >
-                      View Results File
-                    </a>
+                    <ViewResultsLink filePath={investigation.results_url} label="View Results File" />
                   </div>
                 )}
               </div>

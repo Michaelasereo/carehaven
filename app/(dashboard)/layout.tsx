@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/dashboard/sidebar'
 import { DoctorSidebar } from '@/components/dashboard/doctor-sidebar'
 import { AdminSidebar } from '@/components/dashboard/admin-sidebar'
 import { Header } from '@/components/dashboard/header'
+import { AuthSessionProvider } from '@/components/auth/auth-session-provider'
 
 // Force dynamic rendering since we use cookies for authentication
 export const dynamic = 'force-dynamic'
@@ -49,15 +50,17 @@ export default async function DashboardLayout({
     const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
 
     return (
-      <div className="flex h-screen">
-        {isAdmin ? <AdminSidebar /> : isDoctor ? <DoctorSidebar /> : <Sidebar />}
-        <div className="flex-1 flex flex-col overflow-hidden ml-64">
-          <Header />
-          <main className="flex-1 overflow-y-auto bg-white p-6">
-            {children}
-          </main>
+      <AuthSessionProvider>
+        <div className="flex h-screen">
+          {isAdmin ? <AdminSidebar /> : isDoctor ? <DoctorSidebar /> : <Sidebar />}
+          <div className="flex-1 flex flex-col overflow-hidden ml-64">
+            <Header />
+            <main className="flex-1 overflow-y-auto bg-white p-6">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
+      </AuthSessionProvider>
     )
   } catch (error) {
     console.error('Dashboard layout error:', error)

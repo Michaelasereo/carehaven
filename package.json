@@ -19,6 +19,7 @@
     "test:e2e": "tsx scripts/test-e2e-journey.ts",
     "test:auth": "tsx scripts/test-auth-system.ts",
     "test:verification": "tsx scripts/test-verification-email.ts",
+    "seed:sample-session": "tsx scripts/seed-sample-session-data.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:pull": "prisma db pull",

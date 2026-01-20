@@ -36,7 +36,22 @@ jest.mock('@supabase/supabase-js', () => {
         }
         if (table === 'auto_signin_tokens') {
           return {
-            insert: jest.fn().mockResolvedValue({ error: null }),
+            insert: jest.fn().mockReturnValue({
+              select: jest.fn().mockReturnValue({
+                single: jest.fn().mockResolvedValue({
+                  data: {
+                    id: 'token-row-id',
+                    token: 'test-token',
+                    user_id: 'test-user-id',
+                    email: 'test@example.com',
+                    expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+                    used: false,
+                    created_at: new Date().toISOString(),
+                  },
+                  error: null,
+                }),
+              }),
+            }),
           }
         }
         return {}

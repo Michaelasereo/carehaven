@@ -11,6 +11,7 @@ import { JoinConsultationButton } from '@/components/doctor/join-consultation-bu
 import { CreatePrescriptionButton } from '@/components/doctor/create-prescription-button'
 import { RequestInvestigationButton } from '@/components/doctor/request-investigation-button'
 import { PatientHistoryTimeline } from '@/components/doctor/patient-history-timeline'
+import { ViewResultsLink } from '@/components/investigations/view-results-link'
 
 export default async function AppointmentDetailsPage({
   params,
@@ -304,14 +305,7 @@ export default async function AppointmentDetailsPage({
                 )}
                 {investigation.results_url && (
                   <div className="mt-2">
-                    <a
-                      href={investigation.results_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-teal-600 hover:underline"
-                    >
-                      View Results File
-                    </a>
+                    <ViewResultsLink filePath={investigation.results_url} label="View Results File" />
                   </div>
                 )}
               </div>

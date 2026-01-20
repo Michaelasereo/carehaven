@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { FileSearch } from 'lucide-react'
 import { UploadInvestigationDialog } from './upload-investigation-dialog'
+import { ViewResultsLink } from '@/components/investigations/view-results-link'
 
 interface InvestigationCardProps {
   investigation: any
@@ -34,14 +35,9 @@ export function InvestigationCard({ investigation, showUpload }: InvestigationCa
               </Button>
             )}
             {investigation.results_url && (
-              <a
-                href={investigation.results_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-teal-600 hover:text-teal-700 mt-2 inline-block"
-              >
-                View Results
-              </a>
+              <div className="mt-2">
+                <ViewResultsLink filePath={investigation.results_url} label="View Results" />
+              </div>
             )}
           </div>
         </div>

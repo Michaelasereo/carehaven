@@ -35,7 +35,6 @@ export function CreatePrescriptionDialog({
   const [medications, setMedications] = useState([{ name: '', dosage: '', frequency: '', duration: '' }])
   const [instructions, setInstructions] = useState('')
   const [durationDays, setDurationDays] = useState('')
-  const [refillsRemaining, setRefillsRemaining] = useState('0')
 
   const addMedication = () => {
     setMedications([...medications, { name: '', dosage: '', frequency: '', duration: '' }])
@@ -89,7 +88,8 @@ export function CreatePrescriptionDialog({
           medications: validMedications,
           instructions: instructions || null,
           duration_days: durationDays ? parseInt(durationDays) : null,
-          refills_remaining: parseInt(refillsRemaining) || 0,
+          // Refills are not supported in MVP; default to 0
+          refills_remaining: 0,
           status: 'active',
         })
         .select()
@@ -232,16 +232,6 @@ export function CreatePrescriptionDialog({
                 value={durationDays}
                 onChange={(e) => setDurationDays(e.target.value)}
                 placeholder="e.g., 7"
-              />
-            </div>
-            <div>
-              <Label htmlFor="refills">Refills Remaining</Label>
-              <Input
-                id="refills"
-                type="number"
-                value={refillsRemaining}
-                onChange={(e) => setRefillsRemaining(e.target.value)}
-                min="0"
               />
             </div>
           </div>

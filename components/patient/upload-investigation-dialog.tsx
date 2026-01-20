@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Upload, X, FileText, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { createNotification } from '@/lib/notifications/create'
 
 interface UploadInvestigationDialogProps {
   investigationId: string
@@ -78,50 +77,32 @@ export function UploadInvestigationDialog({
         throw new Error('Investigation not found')
       }
 
-      // Upload file to Supabase Storage
-      // Note: Bucket 'investigations' needs to be created in Supabase Storage
-      // For now, we'll store the file info in results_text and handle storage separately
+      // Upload file to Supabase Storage (private bucket: investigations)
       const fileExt = file.name.split('.').pop()
-      const fileName = `investigations/${investigationId}/${Date.now()}.${fileExt}`
-      
-      let publicUrl: string | null = null
-      
-      try {
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('investigations')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false,
-          })
+      const filePath = `${investigationId}/${Date.now()}.${fileExt}`
 
-        if (!uploadError) {
-          // Get public URL if upload successful
-          const { data: urlData } = supabase.storage
-            .from('investigations')
-            .getPublicUrl(fileName)
-          publicUrl = urlData.publicUrl
-        } else {
-          // If bucket doesn't exist, we'll store file metadata in results_text
-          // In production, ensure the bucket is created
-          console.warn('Storage bucket not available, storing file metadata:', uploadError.message)
-          publicUrl = `file:${fileName}` // Placeholder
+      const { error: uploadError } = await supabase.storage
+        .from('investigations')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (uploadError) {
+        // Most common: bucket missing / policies not applied
+        if (uploadError.message?.toLowerCase().includes('bucket not found')) {
+          throw new Error('Investigation storage is not configured yet. Please contact support.')
         }
-      } catch (storageError) {
-        // Fallback: store file metadata
-        publicUrl = `file:${fileName}`
+        throw uploadError
       }
 
       // Update investigation with results URL
       const updateData: any = {
         status: 'completed',
         completed_at: new Date().toISOString(),
-      }
-      
-      if (publicUrl && !publicUrl.startsWith('file:')) {
-        updateData.results_url = publicUrl
-      } else {
-        // Store file info in results_text if storage unavailable
-        updateData.results_text = `File uploaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`
+        // Store storage object path (private) in results_url
+        results_url: filePath,
+        results_text: `File uploaded: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
       }
 
       const { error: updateError } = await supabase

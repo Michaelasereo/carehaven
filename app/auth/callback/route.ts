@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { checkProfileCompletion, getUserRole } from '@/lib/auth/profile-check'
+import { getBaseUrl } from '@/lib/utils/url'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
+  const baseUrl = getBaseUrl(request)
   const code = requestUrl.searchParams.get('code')
   const next = requestUrl.searchParams.get('next') ?? '/'
 
@@ -20,10 +22,10 @@ export async function GET(request: Request) {
       if (token) {
         // This is from our custom email verification, handle it differently
         // The token verification is handled by /api/auth/verify-email
-        return NextResponse.redirect(new URL(`/api/auth/verify-email?token=${token}&email=${requestUrl.searchParams.get('email') || ''}`, requestUrl.origin))
+        return NextResponse.redirect(new URL(`/api/auth/verify-email?token=${token}&email=${requestUrl.searchParams.get('email') || ''}`, baseUrl))
       }
       // For Supabase email verification, redirect with error
-      return NextResponse.redirect(new URL('/auth/signin?error=invalid_code', requestUrl.origin))
+      return NextResponse.redirect(new URL('/auth/signin?error=invalid_code', baseUrl))
     }
     
     // If we have a session, user is authenticated
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
   if (userError || !user) {
     // No session - might be magic link that needs client-side processing
     // Redirect to a page that will handle hash tokens, or back to sign-in
-    return NextResponse.redirect(new URL('/auth/signin', requestUrl.origin))
+    return NextResponse.redirect(new URL('/auth/signin', baseUrl))
   }
 
   // Check if profile exists, if not create one
@@ -72,7 +74,7 @@ export async function GET(request: Request) {
 
     if (profileError) {
       console.error('Error creating profile:', profileError)
-      return NextResponse.redirect(new URL('/auth/signin?error=profile_creation_failed', requestUrl.origin))
+      return NextResponse.redirect(new URL('/auth/signin?error=profile_creation_failed', baseUrl))
     }
   }
 
@@ -88,14 +90,14 @@ export async function GET(request: Request) {
 
   // Only require email verification if neither Supabase nor custom verification exists
   if (!user.email_confirmed_at && !verificationToken) {
-    return NextResponse.redirect(new URL('/auth/verify-email', requestUrl.origin))
+    return NextResponse.redirect(new URL('/auth/verify-email', baseUrl))
   }
 
   // Check profile completion
   const isProfileComplete = await checkProfileCompletion(user.id)
   
   if (!isProfileComplete) {
-    return NextResponse.redirect(new URL('/complete-profile', requestUrl.origin))
+    return NextResponse.redirect(new URL('/complete-profile', baseUrl))
   }
 
   // Get user role and redirect to appropriate dashboard
@@ -119,6 +121,6 @@ export async function GET(request: Request) {
     }
   }
   
-  return NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
+  return NextResponse.redirect(new URL(redirectPath, baseUrl))
 }
 

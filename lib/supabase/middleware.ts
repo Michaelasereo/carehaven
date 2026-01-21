@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getBaseUrl } from '@/lib/utils/url'
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -81,7 +82,8 @@ export async function updateSession(request: NextRequest) {
       fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:72',message:'Middleware redirecting unauthenticated user',data:{path:request.nextUrl.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
     }
     // #endregion
-    const url = new URL('/auth/signin', request.url)
+    const baseUrl = getBaseUrl(request)
+    const url = new URL('/auth/signin', baseUrl)
     url.searchParams.set('redirect', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
@@ -107,7 +109,8 @@ export async function updateSession(request: NextRequest) {
         fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:87',message:'Middleware redirecting to complete-profile',data:{profileCompleted:profile?.profile_completed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
       }
       // #endregion
-      return NextResponse.redirect(new URL('/complete-profile', request.url))
+      const baseUrl = getBaseUrl(request)
+      return NextResponse.redirect(new URL('/complete-profile', baseUrl))
     }
 
     let redirectPath = '/patient'
@@ -120,7 +123,8 @@ export async function updateSession(request: NextRequest) {
       fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:96',message:'Middleware redirecting authenticated user from auth route',data:{redirectPath,role:profile.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
     }
     // #endregion
-    return NextResponse.redirect(new URL(redirectPath, request.url))
+    const baseUrl = getBaseUrl(request)
+    return NextResponse.redirect(new URL(redirectPath, baseUrl))
   }
 
   return response

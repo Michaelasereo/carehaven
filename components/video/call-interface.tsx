@@ -66,11 +66,50 @@ export function CallInterface({ roomUrl, token, onLeave }: CallInterfaceProps) {
       const daily = callFrameRef.current
       callFrameRef.current = null
       if (!daily) return
+      
+      // Helper to safely ignore postMessage errors (iframe already destroyed)
+      const isPostMessageError = (err: any): boolean => {
+        const errorMsg = String(err?.message || err || '').toLowerCase()
+        return errorMsg.includes('postmessage') || errorMsg.includes('null') || errorMsg.includes('cannot read')
+      }
+      
+      // Safely cleanup Daily.co instance
+      // The iframe may have been removed, causing postMessage errors
+      const cleanup = async () => {
+        // Try to leave the call first (if joined)
+        if (typeof daily.leave === 'function') {
+          try {
+            await daily.leave()
+          } catch (err: any) {
+            // Silently ignore postMessage errors (iframe already destroyed)
+            // These are common when component unmounts before Daily finishes initializing
+            if (!isPostMessageError(err)) {
+              console.warn('Daily leave error:', err)
+            }
+          }
+        }
+        
+        // Then destroy the instance
+        if (typeof daily.destroy === 'function') {
+          try {
+            await daily.destroy()
+          } catch (err: any) {
+            // Silently ignore postMessage errors (iframe already destroyed)
+            if (!isPostMessageError(err)) {
+              console.warn('Daily destroy error:', err)
+            }
+          }
+        }
+      }
+      
+      // Wrap in try-catch to handle synchronous errors
       try {
-        daily.leave?.()
-        daily.destroy?.()
-      } catch {
-        // ignore
+        cleanup()
+      } catch (err: any) {
+        // Ignore synchronous postMessage errors
+        if (!isPostMessageError(err)) {
+          console.warn('Error during Daily cleanup:', err)
+        }
       }
     }
   }, [roomUrl, token, onLeave])

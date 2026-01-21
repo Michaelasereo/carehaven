@@ -38,7 +38,8 @@
     "deploy:netlify:retry": "npm run build:optimized && NETLIFY_RETRY_COUNT=5 NETLIFY_RETRY_TIMEOUT=300000 NODE_OPTIONS='--max-http-header-size=16384' npx netlify-cli deploy --prod --timeout=300",
     "deploy:netlify:optimized": "npm run build:optimized && NETLIFY_CDN_UPLOAD_CONCURRENCY=2 NETLIFY_CDN_UPLOAD_TIMEOUT=300 NETLIFY_RETRY_COUNT=3 npx netlify-cli deploy --prod --timeout=300",
     "deploy:prod": "npx netlify-cli deploy --prod --timeout=600",
-    "deploy:prod:standard": "bash scripts/deploy-prod.sh"
+    "deploy:prod:standard": "NETLIFY_SDK_METADATA_URL=\"\" npx netlify-cli deploy --prod --timeout=600",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.78.0",

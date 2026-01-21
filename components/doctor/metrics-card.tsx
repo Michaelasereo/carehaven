@@ -65,7 +65,7 @@ export function MetricsCard({
 
       // Start building query with the appropriate select based on query type
       // Supabase requires .select() to be called before filter methods
-      let query;
+      let query: any;
       
       if (realtimeQueryType === 'sum' && realtimeQueryConfig?.sumField) {
         query = supabase.from('appointments').select(realtimeQueryConfig.sumField)
@@ -313,17 +313,17 @@ export function MetricsCard({
   }, [realtimeTable, realtimeFilter, realtimeQueryType, realtimeQueryConfig, title, supabase, initialValue])
 
   return (
-    <Card className="p-6">
+    <Card className="p-4 md:p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-600">{title}</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <p className="text-2xl font-bold">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs md:text-sm text-gray-600 truncate">{title}</p>
+          <div className="flex items-baseline gap-2 mt-2 flex-wrap">
+            <p className="text-xl md:text-2xl font-bold text-gray-900">{value}</p>
             {trend && <TrendIndicator value={trend.value} period={trend.period} />}
           </div>
         </div>
-        <div className={`${bgColor} p-3 rounded-lg`}>
-          <Icon className={`h-6 w-6 ${color}`} />
+        <div className={`${bgColor} p-2 md:p-3 rounded-lg flex-shrink-0`}>
+          <Icon className={`h-5 w-5 md:h-6 md:w-6 ${color}`} />
         </div>
       </div>
     </Card>

@@ -378,24 +378,25 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
 
   // Edit mode
   return (
-    <Card className="p-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Edit Profile</h2>
+    <Card className="p-4 md:p-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 md:mb-6">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900">Edit Profile</h2>
           <Button
             type="button"
             variant="outline"
             onClick={handleCancel}
             disabled={isLoading}
+            className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
           >
             <X className="h-4 w-4 mr-2" />
             Cancel
           </Button>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
           <div className="relative">
-            <Avatar className="h-24 w-24">
+            <Avatar className="h-20 w-20 md:h-24 md:w-24">
               {(avatarUrl || profile?.avatar_url) ? (
                 <AvatarImage 
                   src={avatarUrl || profile?.avatar_url || ''} 
@@ -406,14 +407,14 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
                   }}
                 />
               ) : null}
-              <AvatarFallback className="bg-teal-100 text-teal-700 text-2xl font-semibold">
+              <AvatarFallback className="bg-teal-100 text-teal-700 text-xl md:text-2xl font-semibold">
                 {profile?.full_name?.charAt(0)?.toUpperCase() || 'D'}
               </AvatarFallback>
             </Avatar>
             <Button
               type="button"
               size="icon"
-              className="absolute bottom-0 right-0 rounded-full"
+              className="absolute bottom-0 right-0 rounded-full min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
               variant="secondary"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingPhoto}
@@ -432,12 +433,13 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
               className="hidden"
             />
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 w-full sm:w-auto">
             <Button 
               type="button" 
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingPhoto}
+              className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
             >
               {isUploadingPhoto ? 'Uploading...' : 'Change Profile Picture'}
             </Button>
@@ -453,7 +455,7 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
             value={watch('years_experience')}
             onValueChange={(value) => setValue('years_experience', value as '1-5' | '>5')}
           >
-            <SelectTrigger id="years_experience">
+            <SelectTrigger id="years_experience" className="min-h-[44px] sm:min-h-0">
               <SelectValue placeholder="Select years of experience" />
             </SelectTrigger>
             <SelectContent>
@@ -471,24 +473,26 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
             onChange={(e) => setValue('bio', e.target.value)}
             rows={5}
             placeholder="Tell us about your experience and approach to patient care..."
+            className="min-h-[120px]"
           />
           {errors.bio && (
             <p className="mt-1 text-sm text-red-600">{errors.bio.message}</p>
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
           <Button
             type="button"
             variant="outline"
             onClick={handleCancel}
             disabled={isLoading}
+            className="w-full sm:w-auto min-h-[44px] sm:min-h-0"
           >
             Cancel
           </Button>
           <Button
             type="submit"
-            className="bg-teal-600 hover:bg-teal-700"
+            className="bg-teal-600 hover:bg-teal-700 w-full sm:w-auto min-h-[44px] sm:min-h-0"
             disabled={isLoading}
           >
             {isLoading ? 'Saving...' : 'Save Changes'}

@@ -9,6 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Camera, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
@@ -40,9 +47,12 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    watch,
+    setValue,
+    formState: { errors, isValid },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
+    mode: 'onChange',
     defaultValues: {
       full_name: profile?.full_name || '',
       email: profile?.email || '',
@@ -58,9 +68,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      // Generate unique file path
+      // Generate unique file path (without bucket name in path)
       const fileExt = file.name.split('.').pop()
-      const fileName = `avatars/${user.id}/${Date.now()}.${fileExt}`
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`
       
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -87,6 +97,13 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
       setAvatarUrl(publicUrl)
       router.refresh()
+      
+      // Add success toast
+      addToast({
+        variant: 'success',
+        title: 'Success',
+        description: 'Profile picture updated successfully!',
+      })
     } catch (error: any) {
       console.error('Error uploading photo:', error)
       addToast({
@@ -130,22 +147,81 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     setIsLoading(true)
     
     try {
+      // Validate form before submission
+      if (!isValid) {
+        addToast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please fix form errors before saving.',
+        })
+        setIsLoading(false)
+        return
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) return
+      if (!user) {
+        addToast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'User not authenticated. Please sign in again.',
+        })
+        setIsLoading(false)
+        return
+      }
 
-      const { error } = await supabase
+      const { data: updateResult, error } = await supabase
         .from('profiles')
-        // Only phone is editable in MVP
-        .update({ phone: data.phone || null })
+        .update({ 
+          full_name: data.full_name,
+          phone: data.phone || null,
+          gender: data.gender || null
+        })
         .eq('id', user.id)
+        .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error updating profile:', {
+          error,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        })
+        throw error
+      }
+
+      if (!updateResult || updateResult.length === 0) {
+        console.warn('Profile update returned no rows:', { userId: user.id })
+        throw new Error('Profile update failed: No rows were updated')
+      }
+
+      // Small delay to allow real-time subscription to trigger
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       router.refresh()
       setIsEditing(false)
-    } catch (error) {
-      console.error('Error updating profile:', error)
+      
+      // Add success toast
+      addToast({
+        variant: 'success',
+        title: 'Success',
+        description: 'Profile updated successfully!',
+      })
+    } catch (error: any) {
+      console.error('Error updating profile:', {
+        error,
+        errorString: String(error),
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorHint: error?.hint,
+        errorCode: error?.code,
+      })
+      addToast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error?.message || error?.details || error?.hint || String(error) || 'Failed to update profile. Please try again.',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -162,10 +238,10 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <Button
             type="button"
             size="icon"
-            className="absolute bottom-0 right-0 rounded-full"
+            className="absolute bottom-0 right-0 rounded-full min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingPhoto || !isEditing}
+            disabled={isUploadingPhoto}
           >
             {isUploadingPhoto ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -186,7 +262,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             type="button" 
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploadingPhoto || !isEditing}
+            disabled={isUploadingPhoto}
+            className="min-h-[44px] sm:min-h-0"
           >
             {isUploadingPhoto ? 'Uploading...' : 'Upload Profile Photo'}
           </Button>
@@ -196,10 +273,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
         <div>
           <Label htmlFor="full_name">Full Name</Label>
-          <Input id="full_name" {...register('full_name')} disabled />
+          <Input 
+            id="full_name" 
+            {...register('full_name')} 
+            disabled={!isEditing}
+            className="min-h-[44px] sm:min-h-0"
+          />
           {errors.full_name && (
             <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
           )}
@@ -207,7 +289,13 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
         <div>
           <Label htmlFor="email">Email Address</Label>
-          <Input id="email" type="email" {...register('email')} disabled />
+          <Input 
+            id="email" 
+            type="email" 
+            {...register('email')} 
+            disabled 
+            className="min-h-[44px] sm:min-h-0"
+          />
         </div>
 
         <div>
@@ -218,6 +306,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             {...register('phone')}
             placeholder="e.g., 08141234567 or +2348141234567"
             disabled={!isEditing}
+            className="min-h-[44px] sm:min-h-0"
           />
           {errors.phone && (
             <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
@@ -226,21 +315,37 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
         <div>
           <Label htmlFor="gender">Gender</Label>
-          <Input id="gender" {...register('gender')} disabled />
+          <Select 
+            value={watch('gender') || ''} 
+            onValueChange={(value) => setValue('gender', value as 'male' | 'female' | 'other', { shouldValidate: true })}
+            disabled={!isEditing}
+          >
+            <SelectTrigger id="gender" className="min-h-[44px] sm:min-h-0">
+              <SelectValue placeholder="Select gender" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="male">Male</SelectItem>
+              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="other">Prefer not to say</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.gender && (
+            <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>
+          )}
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row justify-end gap-3">
         {!isEditing ? (
           <Button
             type="button"
-            className="bg-teal-600 hover:bg-teal-700"
+            className="bg-teal-600 hover:bg-teal-700 w-full sm:w-auto min-h-[44px] sm:min-h-0"
             onClick={() => setIsEditing(true)}
           >
             Edit
           </Button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             <Button
               type="button"
               variant="outline"
@@ -254,12 +359,13 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                 setIsEditing(false)
               }}
               disabled={isLoading}
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-0"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-teal-600 hover:bg-teal-700"
+              className="bg-teal-600 hover:bg-teal-700 w-full sm:w-auto min-h-[44px] sm:min-h-0"
               disabled={isLoading}
             >
               {isLoading ? 'Saving...' : 'Save'}

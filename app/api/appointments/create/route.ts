@@ -10,12 +10,23 @@ import { isTimeAvailable, type AvailabilitySlot } from '@/lib/utils/availability
  */
 export async function POST(request: Request) {
   try {
+    // Log request start for debugging
+    console.log('[appointments/create] Request received')
+    
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('[appointments/create] Auth error:', authError)
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 })
+    }
 
     if (!user) {
+      console.warn('[appointments/create] No authenticated user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('[appointments/create] Authenticated user:', user.id)
 
     const appointmentData = await request.json()
     const {
@@ -156,10 +167,21 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ appointment }, { status: 201 })
-  } catch (error) {
-    console.error('Unexpected error creating appointment:', error)
+  } catch (error: any) {
+    console.error('[appointments/create] Unexpected error:', error)
+    console.error('[appointments/create] Error stack:', error?.stack)
+    
+    // Provide more specific error messages
+    const errorMessage = error?.message || 'Internal server error'
+    const isNetworkError = errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('socket')
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: isNetworkError 
+          ? 'Network error: Unable to connect to database. Please try again.' 
+          : 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     )
   }

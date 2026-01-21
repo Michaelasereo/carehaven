@@ -647,13 +647,16 @@ export function BookAppointmentForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Progress Steps */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4 md:mb-6 overflow-x-auto pb-2 sm:pb-0">
         <Button
           variant={step >= 1 ? 'default' : 'outline'}
           size="sm"
-          className={step >= 1 ? 'bg-teal-600' : ''}
+          className={cn(
+            step >= 1 ? 'bg-teal-600' : '',
+            'min-h-[44px] sm:min-h-0 text-xs sm:text-sm whitespace-nowrap'
+          )}
           disabled
         >
           Step 1: Enter Details
@@ -661,7 +664,10 @@ export function BookAppointmentForm() {
         <Button
           variant={step >= 2 ? 'default' : 'outline'}
           size="sm"
-          className={step >= 2 ? 'bg-teal-600' : ''}
+          className={cn(
+            step >= 2 ? 'bg-teal-600' : '',
+            'min-h-[44px] sm:min-h-0 text-xs sm:text-sm whitespace-nowrap'
+          )}
           disabled
         >
           Step 2: Match with Doctor
@@ -669,7 +675,10 @@ export function BookAppointmentForm() {
         <Button
           variant={step >= 3 ? 'default' : 'outline'}
           size="sm"
-          className={step >= 3 ? 'bg-teal-600' : ''}
+          className={cn(
+            step >= 3 ? 'bg-teal-600' : '',
+            'min-h-[44px] sm:min-h-0 text-xs sm:text-sm whitespace-nowrap'
+          )}
           disabled
         >
           Step 3: Date & Time
@@ -677,7 +686,10 @@ export function BookAppointmentForm() {
         <Button
           variant={step >= 4 ? 'default' : 'outline'}
           size="sm"
-          className={step >= 4 ? 'bg-teal-600' : ''}
+          className={cn(
+            step >= 4 ? 'bg-teal-600' : '',
+            'min-h-[44px] sm:min-h-0 text-xs sm:text-sm whitespace-nowrap'
+          )}
           disabled
         >
           Step 4: Review & Pay
@@ -689,23 +701,24 @@ export function BookAppointmentForm() {
         <Button
           variant="ghost"
           onClick={() => setStep(step - 1)}
-          className="mb-4"
+          className="mb-4 min-h-[44px] sm:min-h-0"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
       )}
 
-      <form onSubmit={handleFormSubmit} className="space-y-6">
+      <form onSubmit={handleFormSubmit} className="space-y-4 md:space-y-6">
         {/* Step 1: Enter Details */}
         {step === 1 && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div>
               <Label htmlFor="chief_complaint">Reason for Consultation *</Label>
               <Input
                 id="chief_complaint"
                 {...register('chief_complaint')}
                 placeholder="e.g., Initial Consultation, Follow-up, etc."
+                className="min-h-[44px] sm:min-h-0"
               />
               {errors.chief_complaint && (
                 <p className="mt-1 text-sm text-red-600">{errors.chief_complaint.message}</p>
@@ -719,14 +732,15 @@ export function BookAppointmentForm() {
                 {...register('symptoms_description')}
                 rows={4}
                 placeholder="Describe your symptoms or reason for consultation..."
+                className="min-h-[100px]"
               />
             </div>
 
             <div>
               <Label>Chronic Conditions (Optional)</Label>
-              <div className="mt-2 space-y-2 border rounded-lg p-4">
+              <div className="mt-2 space-y-2 border rounded-lg p-3 md:p-4">
                 {['Hypertension', 'Diabetes', 'Arthritis', 'Peptic Ulcer', 'Asthma', 'Sickle Cell'].map((condition) => (
-                  <div key={condition} className="flex items-center space-x-2">
+                  <div key={condition} className="flex items-center space-x-2 min-h-[44px] sm:min-h-0">
                     <Checkbox
                       id={`condition-${condition}`}
                       checked={chronicConditions.includes(condition)}
@@ -749,14 +763,14 @@ export function BookAppointmentForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="gender">Gender *</Label>
                 <Select value={gender} onValueChange={(value) => {
                   setGender(value)
                   if (genderError) setGenderError('')
                 }}>
-                  <SelectTrigger id="gender">
+                  <SelectTrigger id="gender" className="min-h-[44px] sm:min-h-0">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -783,6 +797,7 @@ export function BookAppointmentForm() {
                     if (ageError) setAgeError('')
                   }}
                   placeholder="Enter age"
+                  className="min-h-[44px] sm:min-h-0"
                 />
                 {ageError && (
                   <p className="mt-1 text-sm text-red-600">{ageError}</p>
@@ -793,7 +808,7 @@ export function BookAppointmentForm() {
             <Button
               type="button"
               onClick={handleStep1Next}
-              className="bg-teal-600 hover:bg-teal-700"
+              className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 min-h-[44px] sm:min-h-0"
               disabled={!chiefComplaint || chiefComplaint.length < 5 || !gender || !age}
             >
               Next
@@ -803,9 +818,9 @@ export function BookAppointmentForm() {
 
         {/* Step 2: Match with Doctor */}
         {step === 2 && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Select a Doctor</h3>
+              <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Select a Doctor</h3>
               <DoctorList onSelectDoctor={handleDoctorSelect} />
             </div>
           </div>
@@ -813,10 +828,10 @@ export function BookAppointmentForm() {
 
         {/* Step 3: Date & Time Selection */}
         {step === 3 && selectedDoctor && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Select Date & Time</h3>
-              <p className="text-sm text-gray-600 mb-6">
+              <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Select Date & Time</h3>
+              <p className="text-sm text-gray-600 mb-4 md:mb-6">
                 Choose a convenient date and time for your consultation with {selectedDoctor.name}
               </p>
               {isLoadingAvailability && (
@@ -844,29 +859,31 @@ export function BookAppointmentForm() {
               )}
             </div>
 
-            <div className="border rounded-lg p-6 bg-gray-50">
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="border rounded-lg p-4 md:p-6 bg-gray-50">
+              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                 {/* Date Selection */}
                 <div>
                   <Label htmlFor="appointment_date">Select Date *</Label>
-                  <div className="mt-2">
-                    <Calendar
-                      selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : undefined}
-                      onSelect={(date) => {
-                        if (!date) return
-                        // Format date as YYYY-MM-DD in local timezone to avoid UTC conversion issues
-                        const year = date.getFullYear()
-                        const month = String(date.getMonth() + 1).padStart(2, '0')
-                        const day = String(date.getDate()).padStart(2, '0')
-                        const formatted = `${year}-${month}-${day}`
-                        setSelectedDate(formatted)
-                        setSelectedTime('')
-                        setAvailabilityError(null)
-                      }}
-                      minDate={new Date()}
-                      disabled={(date) => !isDateAvailable(date)}
-                      className="border rounded-lg"
-                    />
+                  <div className="mt-2 w-full">
+                    <div className="w-full md:w-auto md:max-w-md">
+                      <Calendar
+                        selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : undefined}
+                        onSelect={(date) => {
+                          if (!date) return
+                          // Format date as YYYY-MM-DD in local timezone to avoid UTC conversion issues
+                          const year = date.getFullYear()
+                          const month = String(date.getMonth() + 1).padStart(2, '0')
+                          const day = String(date.getDate()).padStart(2, '0')
+                          const formatted = `${year}-${month}-${day}`
+                          setSelectedDate(formatted)
+                          setSelectedTime('')
+                          setAvailabilityError(null)
+                        }}
+                        minDate={new Date()}
+                        disabled={(date) => !isDateAvailable(date)}
+                        className="border rounded-lg w-full"
+                      />
+                    </div>
                   </div>
                   {!selectedDate && (
                     <p className="mt-2 text-sm text-red-600">Please select a date</p>
@@ -906,8 +923,8 @@ export function BookAppointmentForm() {
                           Error loading availability
                         </p>
                         <p className="text-sm text-red-700 mt-1">
-                          {availabilityQueryError instanceof Error 
-                            ? availabilityQueryError.message 
+                          {(availabilityQueryError && typeof availabilityQueryError === 'object' && 'message' in availabilityQueryError)
+                            ? String((availabilityQueryError as { message: unknown }).message)
                             : 'Failed to load doctor availability. Please try again.'}
                         </p>
                       </div>
@@ -915,7 +932,7 @@ export function BookAppointmentForm() {
                   ) : selectedDate && availability && availability.length > 0 ? (
                     <div className="mt-2">
                       {availableTimeSlots.length > 0 ? (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                           {availableTimeSlots.map((time) => {
                             const [hours, minutes] = time.split(':').map(Number)
                             const hour12 = hours % 12 || 12
@@ -936,7 +953,7 @@ export function BookAppointmentForm() {
                                   setAvailabilityError(null)
                                 }}
                                 className={cn(
-                                  'p-2 text-sm rounded-lg border transition-colors',
+                                  'p-2 md:p-2 text-sm rounded-lg border transition-colors min-h-[44px] sm:min-h-0',
                                   isSelected
                                     ? 'bg-teal-600 text-white border-teal-600'
                                     : 'bg-white hover:bg-teal-50 border-gray-200'
@@ -984,8 +1001,8 @@ export function BookAppointmentForm() {
                           Error loading availability
                         </p>
                         <p className="text-sm text-red-700 mt-1">
-                          {availabilityQueryError instanceof Error 
-                            ? availabilityQueryError.message 
+                          {(availabilityQueryError && typeof availabilityQueryError === 'object' && 'message' in availabilityQueryError)
+                            ? String((availabilityQueryError as { message: unknown }).message)
                             : 'Failed to load doctor availability. Please try again or contact support.'}
                         </p>
                         <p className="text-xs text-red-600 mt-1">
@@ -1023,7 +1040,7 @@ export function BookAppointmentForm() {
               <Button
                 type="button"
                 onClick={handleStep3Next}
-                className="w-full bg-teal-600 hover:bg-teal-700 mt-6"
+                className="w-full bg-teal-600 hover:bg-teal-700 mt-4 md:mt-6 min-h-[44px] sm:min-h-0"
                 disabled={
                   !selectedDate ||
                   !selectedTime ||
@@ -1042,9 +1059,9 @@ export function BookAppointmentForm() {
 
         {/* Step 4: Review & Payment */}
         {step === 4 && selectedDoctor && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Review Your Appointment</h3>
+              <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4">Review Your Appointment</h3>
               <OrderSummaryCard
                 doctorName={selectedDoctor.name}
                 specialty={selectedDoctor.specialty}
@@ -1057,7 +1074,7 @@ export function BookAppointmentForm() {
 
             <Button
               type="submit"
-              className="w-full bg-teal-600 hover:bg-teal-700"
+              className="w-full bg-teal-600 hover:bg-teal-700 min-h-[44px] sm:min-h-0"
               disabled={
                 isProcessingPayment ||
                 !selectedDate ||

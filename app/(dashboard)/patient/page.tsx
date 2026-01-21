@@ -57,8 +57,8 @@ export default async function PatientDashboardPage() {
   ])
 
   return (
-    <div className="space-y-4 md:space-y-6 px-4 md:px-6">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
+    <div className="space-y-4 md:space-y-6">
+      <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">Dashboard</h1>
 
       {/* Statistics Cards with Real-time Updates */}
       <PatientMetricsGrid

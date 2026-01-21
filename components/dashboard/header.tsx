@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { useUIStore } from '@/lib/store/ui-store'
-import { Menu } from 'lucide-react'
+import { Menu, Calendar as CalendarIcon } from 'lucide-react'
 
 export function Header() {
   const router = useRouter()
@@ -91,23 +91,30 @@ export function Header() {
     : displayName.charAt(0).toUpperCase()
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-6">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-white px-4 md:px-6">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="lg:hidden min-h-[44px] min-w-[44px] flex-shrink-0"
           onClick={toggleSidebar}
         >
           <Menu className="h-5 w-5" />
         </Button>
         {isLoading ? (
-          <span className="text-gray-700">Loading...</span>
+          <span className="text-sm md:text-base text-gray-700 truncate">Loading...</span>
         ) : (
-          <span className="text-gray-700">Welcome, {displayName}</span>
+          <>
+            <span className="text-sm md:text-base text-gray-700 truncate hidden sm:inline">
+              Welcome, {displayName}
+            </span>
+            <span className="text-sm md:text-base text-gray-700 truncate sm:hidden">
+              {displayName}
+            </span>
+          </>
         )}
         {!isLoading && (
-          <Avatar className="h-10 w-10">
+          <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
             {avatarUrl ? (
               <AvatarImage 
                 src={avatarUrl} 
@@ -117,14 +124,14 @@ export function Header() {
                 }}
               />
             ) : null}
-            <AvatarFallback className="bg-teal-100 text-teal-700 font-semibold">
+            <AvatarFallback className="bg-teal-100 text-teal-700 font-semibold text-xs md:text-sm">
               {initials}
             </AvatarFallback>
           </Avatar>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm">▼</Button>
+            <Button variant="ghost" size="sm" className="min-h-[44px] md:min-h-0 flex-shrink-0">▼</Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
@@ -132,11 +139,24 @@ export function Header() {
         </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
         {profile?.role === 'patient' && (
-          <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => router.push('/patient/appointments/book')}>
-            + Book a Consultation
-          </Button>
+          <>
+            <Button 
+              className="bg-teal-600 hover:bg-teal-700 hidden md:flex min-h-[44px]" 
+              onClick={() => router.push('/patient/appointments/book')}
+            >
+              + Book a Consultation
+            </Button>
+            <Button 
+              className="bg-teal-600 hover:bg-teal-700 md:hidden min-h-[44px] min-w-[44px] p-0" 
+              size="icon"
+              onClick={() => router.push('/patient/appointments/book')}
+              aria-label="Book Consultation"
+            >
+              <CalendarIcon className="h-5 w-5" />
+            </Button>
+          </>
         )}
         <NotificationBell userId={user?.id} />
       </div>

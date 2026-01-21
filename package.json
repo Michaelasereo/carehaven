@@ -20,6 +20,7 @@
     "test:auth": "tsx scripts/test-auth-system.ts",
     "test:verification": "tsx scripts/test-verification-email.ts",
     "seed:sample-session": "tsx scripts/seed-sample-session-data.ts",
+    "clear:users": "tsx scripts/clear-users-except-admin.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:pull": "prisma db pull",
@@ -36,7 +37,8 @@
     "deploy:netlify:region-us": "NETLIFY_REGION=us npm run build && NETLIFY_REGION=us npx netlify-cli deploy --prod --timeout=600",
     "deploy:netlify:retry": "npm run build:optimized && NETLIFY_RETRY_COUNT=5 NETLIFY_RETRY_TIMEOUT=300000 NODE_OPTIONS='--max-http-header-size=16384' npx netlify-cli deploy --prod --timeout=300",
     "deploy:netlify:optimized": "npm run build:optimized && NETLIFY_CDN_UPLOAD_CONCURRENCY=2 NETLIFY_CDN_UPLOAD_TIMEOUT=300 NETLIFY_RETRY_COUNT=3 npx netlify-cli deploy --prod --timeout=300",
-    "deploy:prod": "npx netlify-cli deploy --prod --timeout=600"
+    "deploy:prod": "npx netlify-cli deploy --prod --timeout=600",
+    "deploy:prod:standard": "bash scripts/deploy-prod.sh"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.78.0",

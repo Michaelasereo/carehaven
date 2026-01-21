@@ -146,12 +146,12 @@ export function CreatePrescriptionDialog({
             Add medications and instructions for this prescription.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
           <div>
             <Label>Medications</Label>
             <div className="space-y-4 mt-2">
               {medications.map((med, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-3">
+                <div key={index} className="border rounded-lg p-3 md:p-4 space-y-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Medication {index + 1}</span>
                     {medications.length > 1 && (
@@ -160,12 +160,13 @@ export function CreatePrescriptionDialog({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeMedication(index)}
+                        className="min-h-[44px] sm:min-h-0"
                       >
                         Remove
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor={`med-name-${index}`}>Name *</Label>
                       <Input
@@ -174,6 +175,7 @@ export function CreatePrescriptionDialog({
                         onChange={(e) => updateMedication(index, 'name', e.target.value)}
                         placeholder="e.g., Paracetamol"
                         required
+                        className="min-h-[44px] sm:min-h-0"
                       />
                     </div>
                     <div>
@@ -183,6 +185,7 @@ export function CreatePrescriptionDialog({
                         value={med.dosage}
                         onChange={(e) => updateMedication(index, 'dosage', e.target.value)}
                         placeholder="e.g., 500mg"
+                        className="min-h-[44px] sm:min-h-0"
                       />
                     </div>
                     <div>
@@ -192,6 +195,7 @@ export function CreatePrescriptionDialog({
                         value={med.frequency}
                         onChange={(e) => updateMedication(index, 'frequency', e.target.value)}
                         placeholder="e.g., Twice daily"
+                        className="min-h-[44px] sm:min-h-0"
                       />
                     </div>
                     <div>
@@ -201,12 +205,13 @@ export function CreatePrescriptionDialog({
                         value={med.duration}
                         onChange={(e) => updateMedication(index, 'duration', e.target.value)}
                         placeholder="e.g., 7 days"
+                        className="min-h-[44px] sm:min-h-0"
                       />
                     </div>
                   </div>
                 </div>
               ))}
-              <Button type="button" variant="outline" onClick={addMedication}>
+              <Button type="button" variant="outline" onClick={addMedication} className="min-h-[44px] sm:min-h-0 w-full sm:w-auto">
                 + Add Medication
               </Button>
             </div>
@@ -220,10 +225,11 @@ export function CreatePrescriptionDialog({
               onChange={(e) => setInstructions(e.target.value)}
               rows={3}
               placeholder="Additional instructions for the patient..."
+              className="min-h-[100px]"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="duration_days">Duration (Days)</Label>
               <Input
@@ -232,15 +238,16 @@ export function CreatePrescriptionDialog({
                 value={durationDays}
                 onChange={(e) => setDurationDays(e.target.value)}
                 placeholder="e.g., 7"
+                className="min-h-[44px] sm:min-h-0"
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="w-full sm:w-auto min-h-[44px] sm:min-h-0">
               Cancel
             </Button>
-            <Button type="submit" className="bg-teal-600 hover:bg-teal-700" disabled={isLoading}>
+            <Button type="submit" className="bg-teal-600 hover:bg-teal-700 w-full sm:w-auto min-h-[44px] sm:min-h-0" disabled={isLoading}>
               {isLoading ? 'Creating...' : 'Create Prescription'}
             </Button>
           </DialogFooter>

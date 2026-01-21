@@ -84,7 +84,7 @@ export function MetricsCard({
                   if (count !== null) setValue(count)
                 } else if (realtimeTable === 'appointments') {
                   // Build query based on query type
-                  let query = supabase.from('appointments')
+                  let query: any = supabase.from('appointments')
                   
                   if (realtimeQueryType === 'sum' && realtimeQueryConfig?.sumField) {
                     query = query.select(realtimeQueryConfig.sumField)

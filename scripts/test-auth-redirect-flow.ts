@@ -84,7 +84,7 @@ async function testAuthFlow() {
 
     // Step 2: Send verification code
     console.log('\n📧 Step 2: Sending verification code...')
-    const codeResponse = await fetch(`${supabaseUrl.replace('/rest/v1', '')}/api/auth/send-verification-code`, {
+    const codeResponse = await fetch(`${supabaseUrl!.replace('/rest/v1', '')}/api/auth/send-verification-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ async function testAuthFlow() {
 
     // Step 4: Verify the code
     console.log('\n✅ Step 4: Verifying code...')
-    const verifyResponse = await fetch(`${supabaseUrl.replace('/rest/v1', '')}/api/auth/verify-code`, {
+    const verifyResponse = await fetch(`${supabaseUrl!.replace('/rest/v1', '')}/api/auth/verify-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

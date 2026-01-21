@@ -168,15 +168,15 @@ export default async function DoctorDashboardPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Doctor Dashboard</h1>
-          <p className="text-gray-600 mt-1">Overview of your practice</p>
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">Doctor Dashboard</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">Overview of your practice</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/doctor/appointments">
-            <Button variant="outline">View All Appointments</Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Link href="/doctor/appointments" className="flex-1 sm:flex-initial">
+            <Button variant="outline" className="w-full sm:w-auto min-h-[44px] sm:min-h-0">View All Appointments</Button>
           </Link>
         </div>
       </div>

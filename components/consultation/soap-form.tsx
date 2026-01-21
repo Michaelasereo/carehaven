@@ -69,11 +69,11 @@ export function SOAPForm({ appointmentId, doctorId, patientId }: SOAPFormProps) 
         if (notes) {
           // Parse subjective field to extract individual components
           const subjective = notes.subjective || ''
-          const presentingComplaintMatch = subjective.match(/Presenting Complaint:\s*(.+?)(?:\n\n|$)/s)
-          const historyMatch = subjective.match(/History of Presenting Complaint:\s*(.+?)(?:\n\n|$)/s)
-          const pastMedicalMatch = subjective.match(/Past Medical & Surgical History:\s*(.+?)(?:\n\n|$)/s)
-          const familyHistoryMatch = subjective.match(/Family History:\s*(.+?)(?:\n\n|$)/s)
-          const drugSocialMatch = subjective.match(/Drug and Social History:\s*(.+?)(?:\n\n|$)/s)
+          const presentingComplaintMatch = subjective.match(/Presenting Complaint:\s*([\s\S]+?)(?:\n\n|$)/)
+          const historyMatch = subjective.match(/History of Presenting Complaint:\s*([\s\S]+?)(?:\n\n|$)/)
+          const pastMedicalMatch = subjective.match(/Past Medical & Surgical History:\s*([\s\S]+?)(?:\n\n|$)/)
+          const familyHistoryMatch = subjective.match(/Family History:\s*([\s\S]+?)(?:\n\n|$)/)
+          const drugSocialMatch = subjective.match(/Drug and Social History:\s*([\s\S]+?)(?:\n\n|$)/)
 
           // Extract prescription text if available
           const prescriptionText = notes.prescription?.text || ''

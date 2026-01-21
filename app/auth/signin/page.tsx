@@ -17,7 +17,13 @@ export default function SignInPage() {
           <p className="mt-2 text-gray-600">Sign in to continue</p>
         </div>
         
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={
+          <div className="space-y-4">
+            <div className="flex items-center justify-center py-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent"></div>
+            </div>
+          </div>
+        }>
           <EmailSignInForm />
         </Suspense>
       </div>

@@ -183,8 +183,9 @@ export async function POST(req: Request) {
     })
 
     console.log('[signed-url] 5 query investigation (service role)', { investigationId, requesterId })
+    const queryPromise = admin.from('investigations').select('id, patient_id, doctor_id').eq('id', investigationId).maybeSingle() as unknown as Promise<{ data: { id: string; patient_id: string; doctor_id: string | null } | null; error: any }>
     const { data: inv, error: invError } = await withTimeout(
-      admin.from('investigations').select('id, patient_id, doctor_id').eq('id', investigationId).maybeSingle(),
+      queryPromise,
       5000,
       'investigations lookup'
     )

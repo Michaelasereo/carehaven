@@ -20,8 +20,8 @@ import { useCreateAppointment } from '@/lib/react-query/mutations'
 import { useRouter } from 'next/navigation'
 import { DoctorList } from './doctor-list'
 import { OrderSummaryCard } from './order-summary-card'
-import { formatCurrency, cn } from '@/lib/utils'
-import { ArrowLeft, Calendar as CalendarIcon, Clock, AlertCircle, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import { createClient } from '@/lib/supabase/client'
 import { isTimeAvailable, getAvailableTimeSlots, type AvailabilitySlot } from '@/lib/utils/availability'
@@ -30,8 +30,7 @@ import { getConsultationDurationClient, getConsultationPriceClient } from '@/lib
 import { useToast } from '@/components/ui/toast'
 
 const appointmentSchema = z.object({
-  chief_complaint: z.string().min(5, 'Reason must be at least 5 characters'),
-  symptoms_description: z.string().optional(),
+  symptoms_description: z.string().min(5, 'Please describe your symptoms (min 5 characters)'),
   doctor_id: z.string().uuid('Please select a doctor'),
   scheduled_at: z.string().min(1, 'Please select a date and time'),
   amount: z.number().optional(),
@@ -55,15 +54,161 @@ export function BookAppointmentForm() {
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [pendingAppointmentId, setPendingAppointmentId] = useState<string | null>(null)
   const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [consultationPrice, setConsultationPrice] = useState<number>(5000) // Default 50 naira (5000 kobo)
   const [consultationDuration, setConsultationDuration] = useState<number>(45) // Default 45 minutes
   const [chronicConditions, setChronicConditions] = useState<string[]>([])
   const [gender, setGender] = useState<string>('')
   const [age, setAge] = useState<string>('')
+  const [isGenderLocked, setIsGenderLocked] = useState(false)
+  const [isAgeLocked, setIsAgeLocked] = useState(false)
   const [genderError, setGenderError] = useState<string>('')
   const [ageError, setAgeError] = useState<string>('')
   const BUFFER_MINUTES = 15 // Buffer time between appointments
+  const storageKey = 'carehaven.booking.form'
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentSchema),
+  })
+
+  const symptomsDescription = watch('symptoms_description')
+  const watchedDoctorId = watch('doctor_id')
+  const watchedScheduledAt = watch('scheduled_at')
+  const watchedAmount = watch('amount')
+
+  const calculateAge = (dob: string) => {
+    const birthDate = new Date(dob)
+    if (Number.isNaN(birthDate.getTime())) return ''
+    const today = new Date()
+    let years = today.getFullYear() - birthDate.getFullYear()
+    const monthDiff = today.getMonth() - birthDate.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      years -= 1
+    }
+    return years.toString()
+  }
+
+  useEffect(() => {
+    const loadProfileDemographics = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('gender, date_of_birth')
+        .eq('id', user.id)
+        .single()
+      if (!profile) return
+
+      if (profile.gender) {
+        setGender(profile.gender)
+        setIsGenderLocked(true)
+        setGenderError('')
+      }
+      if (profile.date_of_birth) {
+        const calculatedAge = calculateAge(profile.date_of_birth)
+        if (calculatedAge) {
+          setAge(calculatedAge)
+          setIsAgeLocked(true)
+          setAgeError('')
+        }
+      }
+    }
+
+    loadProfileDemographics()
+  }, [supabase])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = sessionStorage.getItem(storageKey)
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        step?: number
+        selectedDoctor?: {
+          id: string
+          name: string
+          specialty: string | null
+          fee: number | null
+        }
+        selectedDate?: string
+        selectedTime?: string
+        gender?: string
+        age?: string
+        chronicConditions?: string[]
+        pendingAppointmentId?: string | null
+        formValues?: {
+          symptoms_description?: string
+          doctor_id?: string
+          scheduled_at?: string
+          amount?: number
+        }
+      }
+
+      if (parsed.step) setStep(parsed.step)
+      if (parsed.selectedDoctor?.id) {
+        setSelectedDoctor(parsed.selectedDoctor)
+        setValue('doctor_id', parsed.selectedDoctor.id)
+      }
+      if (parsed.selectedDate) setSelectedDate(parsed.selectedDate)
+      if (parsed.selectedTime) setSelectedTime(parsed.selectedTime)
+      if (parsed.gender) setGender(parsed.gender)
+      if (parsed.age) setAge(parsed.age)
+      if (Array.isArray(parsed.chronicConditions)) setChronicConditions(parsed.chronicConditions)
+      if (parsed.pendingAppointmentId) setPendingAppointmentId(parsed.pendingAppointmentId)
+      if (parsed.formValues?.symptoms_description) {
+        setValue('symptoms_description', parsed.formValues.symptoms_description)
+      }
+      if (parsed.formValues?.scheduled_at) {
+        setValue('scheduled_at', parsed.formValues.scheduled_at)
+      }
+      if (typeof parsed.formValues?.amount === 'number') {
+        setValue('amount', parsed.formValues.amount)
+      }
+    } catch {
+      sessionStorage.removeItem(storageKey)
+    }
+  }, [setValue])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const payload = {
+      step,
+      selectedDoctor,
+      selectedDate,
+      selectedTime,
+      gender,
+      age,
+      chronicConditions,
+      pendingAppointmentId,
+      formValues: {
+        symptoms_description: symptomsDescription,
+        doctor_id: watchedDoctorId,
+        scheduled_at: watchedScheduledAt,
+        amount: watchedAmount,
+      },
+    }
+    sessionStorage.setItem(storageKey, JSON.stringify(payload))
+  }, [
+    step,
+    selectedDoctor,
+    selectedDate,
+    selectedTime,
+    gender,
+    age,
+    chronicConditions,
+    pendingAppointmentId,
+    symptomsDescription,
+    watchedDoctorId,
+    watchedScheduledAt,
+    watchedAmount,
+  ])
 
   // Fetch consultation price with real-time sync
   useEffect(() => {
@@ -124,6 +269,12 @@ export function BookAppointmentForm() {
       }
     }
   }, [supabase])
+
+  useEffect(() => {
+    if (selectedDoctor?.id) {
+      setValue('amount', consultationPrice)
+    }
+  }, [consultationPrice, selectedDoctor, setValue])
 
   // Fetch consultation duration with real-time sync
   useEffect(() => {
@@ -392,16 +543,6 @@ export function BookAppointmentForm() {
     }
   }, [step, isProcessingPayment, selectedDate, selectedTime])
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<AppointmentFormData>({
-    resolver: zodResolver(appointmentSchema),
-  })
-
   // Log form validation errors
   useEffect(() => {
     if (Object.keys(errors).length > 0) {
@@ -409,9 +550,6 @@ export function BookAppointmentForm() {
       console.error('Validation error details:', JSON.stringify(errors, null, 2))
     }
   }, [errors])
-
-  const chiefComplaint = watch('chief_complaint')
-  const symptomsDescription = watch('symptoms_description')
 
   // Wrap handleSubmit to log validation success/failure
   const handleFormSubmit = handleSubmit(
@@ -425,7 +563,6 @@ export function BookAppointmentForm() {
       
       // Get all form values to debug
       const formValues = {
-        chief_complaint: watch('chief_complaint'),
         doctor_id: watch('doctor_id'),
         scheduled_at: watch('scheduled_at'),
         symptoms_description: watch('symptoms_description'),
@@ -433,7 +570,7 @@ export function BookAppointmentForm() {
       }
       console.error('Current form values:', formValues)
       console.error('Expected values:', {
-        chief_complaint: 'should be string with min 5 chars',
+        symptoms_description: 'should be string with min 5 chars',
         doctor_id: `should be UUID, currently: ${formValues.doctor_id || 'NOT SET'}`,
         scheduled_at: `should be string, currently: ${formValues.scheduled_at || 'NOT SET'}`,
         selectedDoctor: selectedDoctor?.id,
@@ -449,7 +586,7 @@ export function BookAppointmentForm() {
     setGenderError('')
     setAgeError('')
     
-    if (!chiefComplaint || chiefComplaint.length < 5) {
+    if (!symptomsDescription || symptomsDescription.length < 5) {
       return
     }
     
@@ -573,6 +710,9 @@ export function BookAppointmentForm() {
     setIsProcessingPayment(true)
     console.log('✅ Validation passed, processing payment...')
 
+    let appointmentId: string | null = null
+    const isRetry = !!pendingAppointmentId
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -581,67 +721,61 @@ export function BookAppointmentForm() {
         return
       }
 
-      // Combine date and time
       const scheduledAt = new Date(`${selectedDate}T${selectedTime}`).toISOString()
-
-      // Use universal consultation price from system settings (not doctor's individual fee)
       const appointmentAmount = consultationPrice
 
-      console.log('📅 Creating appointment:', {
-        patient_id: user.id,
-        doctor_id: data.doctor_id,
-        scheduled_at: scheduledAt,
-        amount: appointmentAmount,
-        duration_minutes: consultationDuration
-      })
+      if (pendingAppointmentId) {
+        appointmentId = pendingAppointmentId
+        console.log('💳 Retrying payment for existing appointment:', appointmentId)
+      } else {
+        const appointment = await createAppointment.mutateAsync({
+          patient_id: user.id,
+          doctor_id: data.doctor_id,
+          chief_complaint: data.symptoms_description,
+          symptoms_description: data.symptoms_description,
+          scheduled_at: scheduledAt,
+          duration_minutes: consultationDuration,
+          amount: appointmentAmount,
+          currency: 'NGN',
+          status: 'scheduled',
+          payment_status: 'pending',
+        })
+        appointmentId = appointment.id
+        console.log('📅 Created appointment:', appointmentId)
+      }
 
-      // Create appointment with configured duration
-      const appointment = await createAppointment.mutateAsync({
-        patient_id: user.id,
-        doctor_id: data.doctor_id,
-        chief_complaint: data.chief_complaint,
-        symptoms_description: data.symptoms_description,
-        scheduled_at: scheduledAt,
-        duration_minutes: consultationDuration,
-        amount: appointmentAmount,
-        currency: 'NGN',
-        status: 'scheduled',
-        payment_status: 'pending',
-      })
-
-      console.log('💳 Initializing payment for appointment:', appointment.id)
-
-      // Initialize payment
       const paymentResponse = await fetch('/api/payments/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: appointmentAmount,
-          appointmentId: appointment.id,
+          appointmentId,
         }),
       })
 
+      const paymentData = await paymentResponse.json().catch(() => ({}))
       if (!paymentResponse.ok) {
-        const errorData = await paymentResponse.json().catch(() => ({ error: 'Failed to parse error response' }))
-        throw new Error(errorData.error || `Payment initialization failed (${paymentResponse.status})`)
+        throw new Error(paymentData.error || `Payment failed (${paymentResponse.status}). Please try again.`)
       }
-
-      const paymentData = await paymentResponse.json()
-
       if (!paymentData.authorization_url) {
-        throw new Error(paymentData.error || 'Failed to initialize payment')
+        throw new Error(paymentData.error || 'Payment could not be started. Please try again.')
       }
 
-      // Redirect to Paystack
+      setPendingAppointmentId(null)
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(storageKey)
+      }
       window.location.href = paymentData.authorization_url
-    } catch (error: any) {
-      console.error('Error booking appointment:', error)
-      const errorMessage = error?.message || 'Failed to book appointment. Please try again.'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to book appointment. Please try again.'
       addToast({
         variant: 'destructive',
-        title: 'Booking Failed',
-        description: errorMessage,
+        title: 'Payment could not be started',
+        description: `${errorMessage} Click "Proceed to Payment" again to retry.`,
       })
+      if (!isRetry && appointmentId) {
+        setPendingAppointmentId(appointmentId)
+      }
       setIsProcessingPayment(false)
     }
   }
@@ -713,27 +847,17 @@ export function BookAppointmentForm() {
         {step === 1 && (
           <div className="space-y-4 md:space-y-6">
             <div>
-              <Label htmlFor="chief_complaint">Reason for Consultation *</Label>
-              <Input
-                id="chief_complaint"
-                {...register('chief_complaint')}
-                placeholder="e.g., Initial Consultation, Follow-up, etc."
-                className="min-h-[44px] sm:min-h-0"
-              />
-              {errors.chief_complaint && (
-                <p className="mt-1 text-sm text-red-600">{errors.chief_complaint.message}</p>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="symptoms_description">Complaints / Symptoms</Label>
+              <Label htmlFor="symptoms_description">Complaints / Symptoms *</Label>
               <Textarea
                 id="symptoms_description"
                 {...register('symptoms_description')}
                 rows={4}
-                placeholder="Describe your symptoms or reason for consultation..."
+                placeholder="Describe your symptoms or concerns..."
                 className="min-h-[100px]"
               />
+              {errors.symptoms_description && (
+                <p className="mt-1 text-sm text-red-600">{errors.symptoms_description.message}</p>
+              )}
             </div>
 
             <div>
@@ -769,8 +893,8 @@ export function BookAppointmentForm() {
                 <Select value={gender} onValueChange={(value) => {
                   setGender(value)
                   if (genderError) setGenderError('')
-                }}>
-                  <SelectTrigger id="gender" className="min-h-[44px] sm:min-h-0">
+                }} disabled={isGenderLocked}>
+                  <SelectTrigger id="gender" className="min-h-[44px] sm:min-h-0" disabled={isGenderLocked}>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -798,6 +922,7 @@ export function BookAppointmentForm() {
                   }}
                   placeholder="Enter age"
                   className="min-h-[44px] sm:min-h-0"
+                  disabled={isAgeLocked}
                 />
                 {ageError && (
                   <p className="mt-1 text-sm text-red-600">{ageError}</p>
@@ -809,7 +934,7 @@ export function BookAppointmentForm() {
               type="button"
               onClick={handleStep1Next}
               className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 min-h-[44px] sm:min-h-0"
-              disabled={!chiefComplaint || chiefComplaint.length < 5 || !gender || !age}
+              disabled={!symptomsDescription || symptomsDescription.length < 5 || !gender || !age}
             >
               Next
             </Button>
@@ -1097,7 +1222,6 @@ export function BookAppointmentForm() {
                 
                 // Get current form values before submission
                 const currentFormValues = {
-                  chief_complaint: watch('chief_complaint'),
                   doctor_id: watch('doctor_id'),
                   scheduled_at: watch('scheduled_at'),
                   symptoms_description: watch('symptoms_description'),

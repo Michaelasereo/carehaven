@@ -1,26 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { DoctorListTable } from '@/components/admin/doctor-list-table'
 import { DoctorListClient } from '@/components/admin/doctor-list-client'
 import { DoctorSearchForm } from '@/components/admin/doctor-search-form'
-import { Download } from 'lucide-react'
 
 export default async function AdminDoctorsPage({
   searchParams,
 }: {
-  searchParams: { 
+  searchParams: Promise<{
     filter?: string
     search?: string
     specialty?: string
     sort?: string
     order?: 'asc' | 'desc'
     page?: string
-  }
+  }>
 }) {
-  // Auth and role checks are handled by app/(dashboard)/layout.tsx
+  const params = await searchParams
   const supabase = await createClient()
 
   // Get all specialties for filter
@@ -39,29 +33,29 @@ export default async function AdminDoctorsPage({
     .eq('role', 'doctor')
 
   // Apply filters
-  if (searchParams.filter === 'pending') {
+  if (params.filter === 'pending') {
     query = query.eq('license_verified', false)
-  } else if (searchParams.filter === 'verified') {
+  } else if (params.filter === 'verified') {
     query = query.eq('license_verified', true)
   }
 
-  if (searchParams.specialty) {
-    query = query.eq('specialty', searchParams.specialty)
+  if (params.specialty) {
+    query = query.eq('specialty', params.specialty)
   }
 
-  if (searchParams.search) {
+  if (params.search) {
     query = query.or(
-      `full_name.ilike.%${searchParams.search}%,email.ilike.%${searchParams.search}%,license_number.ilike.%${searchParams.search}%,specialty.ilike.%${searchParams.search}%`
+      `full_name.ilike.%${params.search}%,email.ilike.%${params.search}%,license_number.ilike.%${params.search}%,specialty.ilike.%${params.search}%`
     )
   }
 
   // Apply sorting
-  const sortField = searchParams.sort || 'created_at'
-  const sortOrder = searchParams.order || 'desc'
+  const sortField = params.sort || 'created_at'
+  const sortOrder = params.order || 'desc'
   query = query.order(sortField, { ascending: sortOrder === 'asc' })
 
   // Pagination
-  const page = parseInt(searchParams.page || '1')
+  const page = parseInt(params.page || '1')
   const pageSize = 50
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
@@ -106,19 +100,19 @@ export default async function AdminDoctorsPage({
     .select('*', { count: 'exact', head: true })
     .eq('role', 'doctor')
 
-  if (searchParams.filter === 'pending') {
+  if (params.filter === 'pending') {
     countQuery = countQuery.eq('license_verified', false)
-  } else if (searchParams.filter === 'verified') {
+  } else if (params.filter === 'verified') {
     countQuery = countQuery.eq('license_verified', true)
   }
 
-  if (searchParams.specialty) {
-    countQuery = countQuery.eq('specialty', searchParams.specialty)
+  if (params.specialty) {
+    countQuery = countQuery.eq('specialty', params.specialty)
   }
 
-  if (searchParams.search) {
+  if (params.search) {
     countQuery = countQuery.or(
-      `full_name.ilike.%${searchParams.search}%,email.ilike.%${searchParams.search}%,license_number.ilike.%${searchParams.search}%,specialty.ilike.%${searchParams.search}%`
+      `full_name.ilike.%${params.search}%,email.ilike.%${params.search}%,license_number.ilike.%${params.search}%,specialty.ilike.%${params.search}%`
     )
   }
 
@@ -128,23 +122,17 @@ export default async function AdminDoctorsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Doctor Management</h1>
-          <p className="text-gray-600 mt-1">Manage and verify doctor accounts</p>
-        </div>
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Doctor Management</h1>
+        <p className="text-gray-600 mt-1">Manage and verify doctor accounts</p>
       </div>
 
       {/* Enhanced Filters */}
       <DoctorSearchForm
         specialties={specialties}
-        currentFilter={searchParams.filter}
-        currentSearch={searchParams.search}
-        currentSpecialty={searchParams.specialty}
+        currentFilter={params.filter}
+        currentSearch={params.search}
+        currentSpecialty={params.specialty}
       />
 
       {/* Enhanced Doctors Table */}
@@ -152,7 +140,7 @@ export default async function AdminDoctorsPage({
         doctors={doctorsWithStats}
         currentPage={page}
         totalPages={totalPages}
-        searchParams={searchParams}
+        searchParams={params}
       />
     </div>
   )

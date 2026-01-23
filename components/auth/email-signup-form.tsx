@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +27,33 @@ export function EmailSignUpForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const storageKey = 'carehaven.signup.form'
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = sessionStorage.getItem(storageKey)
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        email?: string
+        password?: string
+        confirmPassword?: string
+      }
+      if (parsed.email) setEmail(parsed.email)
+      if (parsed.password) setPassword(parsed.password)
+      if (parsed.confirmPassword) setConfirmPassword(parsed.confirmPassword)
+    } catch {
+      sessionStorage.removeItem(storageKey)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({ email, password, confirmPassword })
+    )
+  }, [email, password, confirmPassword])
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -137,6 +164,7 @@ export function EmailSignUpForm() {
       }
       
       setSuccess(true)
+      sessionStorage.removeItem(storageKey)
       // Redirect to email verification page with email parameter
       router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
     } else {

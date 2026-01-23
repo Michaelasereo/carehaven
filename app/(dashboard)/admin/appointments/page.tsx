@@ -1,17 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { format } from 'date-fns'
-import { Download } from 'lucide-react'
 import { AppointmentFilters } from '@/components/admin/appointment-filters'
 import { AppointmentListClient } from '@/components/admin/appointment-list-client'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 export default async function AdminAppointmentsPage({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     status?: string
     doctor?: string
     patient?: string
@@ -19,9 +15,9 @@ export default async function AdminAppointmentsPage({
     date_from?: string
     date_to?: string
     page?: string
-  }
+  }>
 }) {
-  // Auth and role checks are handled by app/(dashboard)/layout.tsx
+  const params = await searchParams
   const supabase = await createClient()
 
   // Get unique statuses and doctors for filters
@@ -49,24 +45,24 @@ export default async function AdminAppointmentsPage({
       doctor:profiles!appointments_doctor_id_fkey(full_name, email, specialty)
     `)
 
-  if (searchParams.status && searchParams.status !== 'all') {
-    query = query.eq('status', searchParams.status)
+  if (params.status && params.status !== 'all') {
+    query = query.eq('status', params.status)
   }
 
-  if (searchParams.doctor && searchParams.doctor !== 'all') {
-    query = query.eq('doctor_id', searchParams.doctor)
+  if (params.doctor && params.doctor !== 'all') {
+    query = query.eq('doctor_id', params.doctor)
   }
 
-  if (searchParams.payment_status && searchParams.payment_status !== 'all') {
-    query = query.eq('payment_status', searchParams.payment_status)
+  if (params.payment_status && params.payment_status !== 'all') {
+    query = query.eq('payment_status', params.payment_status)
   }
 
-  if (searchParams.date_from) {
-    query = query.gte('scheduled_at', new Date(searchParams.date_from).toISOString())
+  if (params.date_from) {
+    query = query.gte('scheduled_at', new Date(params.date_from).toISOString())
   }
 
-  if (searchParams.date_to) {
-    const dateTo = new Date(searchParams.date_to)
+  if (params.date_to) {
+    const dateTo = new Date(params.date_to)
     dateTo.setHours(23, 59, 59, 999)
     query = query.lte('scheduled_at', dateTo.toISOString())
   }
@@ -75,7 +71,7 @@ export default async function AdminAppointmentsPage({
   query = query.order('scheduled_at', { ascending: false })
 
   // Pagination
-  const page = parseInt(searchParams.page || '1')
+  const page = parseInt(params.page || '1')
   const pageSize = 50
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
@@ -93,24 +89,24 @@ export default async function AdminAppointmentsPage({
     .from('appointments')
     .select('*', { count: 'exact', head: true })
 
-  if (searchParams.status && searchParams.status !== 'all') {
-    countQuery = countQuery.eq('status', searchParams.status)
+  if (params.status && params.status !== 'all') {
+    countQuery = countQuery.eq('status', params.status)
   }
 
-  if (searchParams.doctor && searchParams.doctor !== 'all') {
-    countQuery = countQuery.eq('doctor_id', searchParams.doctor)
+  if (params.doctor && params.doctor !== 'all') {
+    countQuery = countQuery.eq('doctor_id', params.doctor)
   }
 
-  if (searchParams.payment_status && searchParams.payment_status !== 'all') {
-    countQuery = countQuery.eq('payment_status', searchParams.payment_status)
+  if (params.payment_status && params.payment_status !== 'all') {
+    countQuery = countQuery.eq('payment_status', params.payment_status)
   }
 
-  if (searchParams.date_from) {
-    countQuery = countQuery.gte('scheduled_at', new Date(searchParams.date_from).toISOString())
+  if (params.date_from) {
+    countQuery = countQuery.gte('scheduled_at', new Date(params.date_from).toISOString())
   }
 
-  if (searchParams.date_to) {
-    const dateTo = new Date(searchParams.date_to)
+  if (params.date_to) {
+    const dateTo = new Date(params.date_to)
     dateTo.setHours(23, 59, 59, 999)
     countQuery = countQuery.lte('scheduled_at', dateTo.toISOString())
   }
@@ -126,10 +122,9 @@ export default async function AdminAppointmentsPage({
           <h1 className="text-3xl font-bold text-gray-900">Appointment Management</h1>
           <p className="text-gray-600 mt-1">View and monitor all platform appointments</p>
         </div>
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <Link href="/admin/appointments/book">
+          <Button className="bg-teal-600 hover:bg-teal-700">Book Appointment</Button>
+        </Link>
       </div>
 
       {/* Filters */}
@@ -140,7 +135,7 @@ export default async function AdminAppointmentsPage({
         appointments={appointments || []}
         currentPage={page}
         totalPages={totalPages}
-        searchParams={searchParams}
+        searchParams={params}
       />
     </div>
   )

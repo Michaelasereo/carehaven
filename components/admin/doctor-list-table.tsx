@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -113,8 +114,59 @@ export function DoctorListTable({
   }
 
   return (
-    <div className="border rounded-lg">
-      <Table>
+    <div className="space-y-4">
+      <div className="md:hidden space-y-3">
+        {doctors.map((doctor) => {
+          const initials = doctor.full_name
+            ?.split(' ')
+            .map((n) => n[0])
+            .join('')
+            .toUpperCase() || 'D'
+
+          return (
+            <Card key={doctor.id} className="p-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={doctor.avatar_url || undefined} alt={doctor.full_name || 'Doctor'} />
+                  <AvatarFallback className="bg-teal-100 text-teal-700">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <Link
+                    href={`/admin/doctors/${doctor.id}`}
+                    className="font-medium hover:text-teal-600"
+                  >
+                    {doctor.full_name || 'Unknown'}
+                  </Link>
+                  <p className="text-sm text-gray-500">{doctor.email}</p>
+                  <p className="text-xs text-gray-500">{doctor.specialty || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <Badge variant={doctor.license_verified ? 'default' : 'secondary'}>
+                  {doctor.license_verified ? 'Verified' : 'Access Revoked'}
+                </Badge>
+                <span className="text-gray-600">Patients: {doctor.patient_count || 0}</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href={`/admin/doctors/${doctor.id}`}>
+                  <Button size="sm" variant="outline">View Details</Button>
+                </Link>
+                <Link href={`/admin/appointments?doctor=${doctor.id}`}>
+                  <Button size="sm" variant="outline">View Appointments</Button>
+                </Link>
+                <Link href={`/admin/doctors/${doctor.id}/availability`}>
+                  <Button size="sm" variant="outline">Availability</Button>
+                </Link>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+
+      <div className="hidden md:block border rounded-lg">
+        <Table>
         <TableHeader>
           <TableRow>
             {onBulkSelect && (
@@ -241,6 +293,16 @@ export function DoctorListTable({
                           View Details
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/appointments?doctor=${doctor.id}`} className="w-full">
+                          View Appointments
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/doctors/${doctor.id}/availability`} className="w-full">
+                          Manage Availability
+                        </Link>
+                      </DropdownMenuItem>
                       {userRole === 'super_admin' && (
                         <DropdownMenuItem 
                           onSelect={(e) => {
@@ -263,6 +325,7 @@ export function DoctorListTable({
           })}
         </TableBody>
       </Table>
+    </div>
     </div>
   )
 }

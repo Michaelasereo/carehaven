@@ -48,6 +48,10 @@ export function AppointmentListClient({
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null)
   const supabase = createClient()
 
+  useEffect(() => {
+    setAppointments(initialAppointments)
+  }, [initialAppointments])
+
   // Subscribe to real-time updates
   useEffect(() => {
     const channel = supabase

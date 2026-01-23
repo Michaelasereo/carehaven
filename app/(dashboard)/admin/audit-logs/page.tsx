@@ -1,26 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Search, Download } from 'lucide-react'
-import { format } from 'date-fns'
 import { AuditLogsClient } from '@/components/admin/audit-logs-client'
 
 export default async function AdminAuditLogsPage({
   searchParams,
 }: {
-  searchParams: {
+  searchParams: Promise<{
     search?: string
     action?: string
     entity_type?: string
     date_from?: string
     date_to?: string
     page?: string
-  }
+  }>
 }) {
-  // Auth and role checks are handled by app/(dashboard)/layout.tsx
+  const params = await searchParams
   const supabase = await createClient()
 
   // Build query - simplified to handle different table schemas
@@ -30,35 +23,30 @@ export default async function AdminAuditLogsPage({
     .order('created_at', { ascending: false })
 
   // Apply filters
-  if (searchParams.action && searchParams.action !== 'all') {
-    query = query.eq('action', searchParams.action)
+  if (params.action && params.action !== 'all') {
+    query = query.eq('action', params.action)
   }
 
-  // Only filter by entity_type if the column exists (check schema)
-  // The table might have either entity_type (from 002) or table_name (from 004)
-  if (searchParams.entity_type && searchParams.entity_type !== 'all') {
-    // Try entity_type first (schema from 002_audit_logs.sql)
-    query = query.eq('entity_type', searchParams.entity_type)
+  if (params.entity_type && params.entity_type !== 'all') {
+    query = query.eq('entity_type', params.entity_type)
   }
 
-  if (searchParams.search) {
-    // Search in description field (simplified - Supabase .or() can be finicky)
-    // If description doesn't exist, this will still work (Supabase ignores null fields)
-    query = query.ilike('description', `%${searchParams.search}%`)
+  if (params.search) {
+    query = query.ilike('description', `%${params.search}%`)
   }
 
-  if (searchParams.date_from) {
-    query = query.gte('created_at', new Date(searchParams.date_from).toISOString())
+  if (params.date_from) {
+    query = query.gte('created_at', new Date(params.date_from).toISOString())
   }
 
-  if (searchParams.date_to) {
-    const dateTo = new Date(searchParams.date_to)
+  if (params.date_to) {
+    const dateTo = new Date(params.date_to)
     dateTo.setHours(23, 59, 59, 999)
     query = query.lte('created_at', dateTo.toISOString())
   }
 
   // Pagination
-  const page = parseInt(searchParams.page || '1')
+  const page = parseInt(params.page || '1')
   const pageSize = 50
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
@@ -81,25 +69,24 @@ export default async function AdminAuditLogsPage({
     .from('audit_logs')
     .select('*', { count: 'exact', head: true })
 
-  if (searchParams.action && searchParams.action !== 'all') {
-    countQuery = countQuery.eq('action', searchParams.action)
+  if (params.action && params.action !== 'all') {
+    countQuery = countQuery.eq('action', params.action)
   }
 
-  if (searchParams.entity_type && searchParams.entity_type !== 'all') {
-    countQuery = countQuery.eq('entity_type', searchParams.entity_type)
+  if (params.entity_type && params.entity_type !== 'all') {
+    countQuery = countQuery.eq('entity_type', params.entity_type)
   }
 
-  if (searchParams.search) {
-    // Search in description field
-    countQuery = countQuery.ilike('description', `%${searchParams.search}%`)
+  if (params.search) {
+    countQuery = countQuery.ilike('description', `%${params.search}%`)
   }
 
-  if (searchParams.date_from) {
-    countQuery = countQuery.gte('created_at', new Date(searchParams.date_from).toISOString())
+  if (params.date_from) {
+    countQuery = countQuery.gte('created_at', new Date(params.date_from).toISOString())
   }
 
-  if (searchParams.date_to) {
-    const dateTo = new Date(searchParams.date_to)
+  if (params.date_to) {
+    const dateTo = new Date(params.date_to)
     dateTo.setHours(23, 59, 59, 999)
     countQuery = countQuery.lte('created_at', dateTo.toISOString())
   }
@@ -125,22 +112,16 @@ export default async function AdminAuditLogsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
-          <p className="text-gray-600 mt-1">Track system changes and user activities</p>
-        </div>
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Audit Logs</h1>
+        <p className="text-gray-600 mt-1">Track system changes and user activities</p>
       </div>
 
       <AuditLogsClient
         auditLogs={auditLogs || []}
         currentPage={page}
         totalPages={totalPages}
-        searchParams={searchParams}
+        searchParams={params}
         actions={actions}
         entityTypes={entityTypes}
       />

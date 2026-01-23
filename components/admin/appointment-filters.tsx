@@ -11,8 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Calendar } from 'lucide-react'
-import { format, startOfDay, endOfDay } from 'date-fns'
 
 interface AppointmentFiltersProps {
   statuses: string[]
@@ -31,7 +29,7 @@ export function AppointmentFilters({ statuses, doctors }: AppointmentFiltersProp
       newParams.delete(key)
     }
     newParams.delete('page') // Reset to page 1
-    router.push(`/admin/appointments?${newParams.toString()}`)
+    router.replace(`/admin/appointments?${newParams.toString()}`)
   }
 
   return (
@@ -86,21 +84,28 @@ export function AppointmentFilters({ statuses, doctors }: AppointmentFiltersProp
           </SelectContent>
         </Select>
 
-        <Input
-          type="date"
-          value={params.get('date_from') || ''}
-          onChange={(e) => handleFilterChange('date_from', e.target.value)}
-          className="w-[180px]"
-          placeholder="From Date"
-        />
-
-        <Input
-          type="date"
-          value={params.get('date_to') || ''}
-          onChange={(e) => handleFilterChange('date_to', e.target.value)}
-          className="w-[180px]"
-          placeholder="To Date"
-        />
+        <div className="flex items-start gap-3 flex-wrap">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-600">From Date</span>
+            <Input
+              type="date"
+              value={params.get('date_from') || ''}
+              onChange={(e) => handleFilterChange('date_from', e.target.value)}
+              className="w-[180px]"
+              placeholder="From Date"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-600">To Date</span>
+            <Input
+              type="date"
+              value={params.get('date_to') || ''}
+              onChange={(e) => handleFilterChange('date_to', e.target.value)}
+              className="w-[180px]"
+              placeholder="To Date"
+            />
+          </div>
+        </div>
 
         <Button
           variant="outline"

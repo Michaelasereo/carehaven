@@ -41,7 +41,9 @@ export async function POST(request: Request) {
     } = appointmentData
 
     // Validate required fields
-    if (!patient_id || !doctor_id || !scheduled_at || !chief_complaint) {
+    const normalizedSymptoms = symptoms_description || chief_complaint
+
+    if (!patient_id || !doctor_id || !scheduled_at || !normalizedSymptoms) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -139,8 +141,8 @@ export async function POST(request: Request) {
         doctor_id,
         scheduled_at: scheduledDate.toISOString(),
         duration_minutes,
-        chief_complaint,
-        symptoms_description,
+        chief_complaint: chief_complaint || normalizedSymptoms,
+        symptoms_description: normalizedSymptoms,
         amount,
         currency,
         status: 'scheduled',

@@ -55,5 +55,8 @@ netlify-env-commands.txt
 
 # Debug logs
 .cursor/debug.log
+
+# Supabase CLI temp
+supabase/.temp
 UPDATE_BREVO_API_KEY.md
 EMAIL_TROUBLESHOOTING.md

@@ -30,24 +30,24 @@ export default async function PatientDashboardPage() {
     { count: unreadNotifications },
   ] = await Promise.all([
     supabase
-    .from('appointments')
-    .select('*, profiles!appointments_doctor_id_fkey(*)')
-    .eq('patient_id', user.id)
-    .order('scheduled_at', { ascending: true })
+      .from('appointments')
+      .select('*, profiles!appointments_doctor_id_fkey(*)')
+      .eq('patient_id', user.id)
+      .order('scheduled_at', { ascending: true })
       .limit(5),
     supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('patient_id', user.id)
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('patient_id', user.id)
       .eq('status', 'completed'),
     supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('patient_id', user.id)
+      .from('appointments')
+      .select('*', { count: 'exact', head: true })
+      .eq('patient_id', user.id)
       .in('status', ['scheduled', 'confirmed']),
     supabase
-    .from('investigations')
-    .select('*', { count: 'exact', head: true })
+      .from('investigations')
+      .select('*', { count: 'exact', head: true })
       .eq('patient_id', user.id),
     supabase
       .from('notifications')
@@ -96,6 +96,7 @@ export default async function PatientDashboardPage() {
       {/* Client Component with Real-time Updates */}
       <PatientDashboardClient
         patientId={user.id}
+        profile={{ full_name: profile.full_name }}
         initialAppointments={appointments || []}
         unreadNotifications={unreadNotifications || 0}
       />

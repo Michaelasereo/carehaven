@@ -75,42 +75,32 @@ function VerifyEmailContent() {
       const isAdmin = searchParams.get('admin') === 'true'
       const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
       
-      // If autoSigninUrl is provided, redirect to it for automatic sign-in
-      if (result.autoSigninUrl) {
-        console.log('✅ Email verified, redirecting to auto-signin URL')
-        // Use window.location for full page navigation to ensure proper cookie handling
-        window.location.href = result.autoSigninUrl
-        return
-      }
-
-      // Fallback: If requiresSignIn flag is set (auto-signin token creation failed), redirect to login
-      if (result.requiresSignIn) {
-        console.warn('⚠️ Auto-signin not available, redirecting to login with verified flag')
-        // Store redirect path in sessionStorage so login can redirect after sign-in
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('postVerifyRedirect', redirectPath)
-        }
-        if (isAdmin) {
-          router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
-        } else if (redirectPath.startsWith('/doctor')) {
-          router.push(`/doctor/login?email=${encodeURIComponent(email || '')}&verified=true`)
-        } else {
-          router.push(`/auth/signin?email=${encodeURIComponent(email || '')}&verified=true`)
-        }
-        return
-      }
-
-      // If we get here with success but no autoSigninUrl or requiresSignIn, 
-      // try to check if we already have a session (edge case)
+      // SIMPLIFIED FLOW: Check if user already has a session (they should from signin form)
+      // This is the primary path - user signed in, then verified code, session should exist
       const { data: { session: currentSession } } = await supabase.auth.getSession()
+      
       if (currentSession) {
-        console.log('✅ Session already exists, redirecting to dashboard')
+        console.log('✅ Session exists, redirecting directly to dashboard')
+        console.log(`   User: ${currentSession.user.email}`)
+        console.log(`   Redirect: ${redirectPath}`)
+        // Use window.location for full page navigation to ensure proper cookie handling
         window.location.href = redirectPath
         return
       }
 
-      // Ultimate fallback: redirect to sign-in
-      console.warn('⚠️ No session or auto-signin URL, redirecting to sign-in')
+      // If no session but autoSigninUrl is provided, try it as fallback
+      if (result.autoSigninUrl) {
+        console.log('⚠️ No session found, trying auto-signin URL')
+        window.location.href = result.autoSigninUrl
+        return
+      }
+
+      // Fallback: Redirect to login with verified flag
+      // This happens if session expired during verification
+      console.warn('⚠️ No session, redirecting to login with verified flag')
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('postVerifyRedirect', redirectPath)
+      }
       if (isAdmin) {
         router.push(`/admin/login?email=${encodeURIComponent(email || '')}&verified=true`)
       } else if (redirectPath.startsWith('/doctor')) {

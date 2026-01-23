@@ -1,3 +1,9 @@
+/**
+ * Initialize Paystack payment.
+ * @param amount - Amount in kobo (e.g. 5000 = ₦50). Paystack expects kobo.
+ * @param email - Customer email
+ * @param reference - Unique transaction reference
+ */
 export async function initializePayment(amount: number, email: string, reference: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'
   if (!process.env.NEXT_PUBLIC_APP_URL) {
@@ -5,25 +11,25 @@ export async function initializePayment(amount: number, email: string, reference
   }
 
   const callbackUrl = `${appUrl}/payment/callback`
-  
+  /** Amount is in kobo (e.g. 5000 = ₦50). Paystack expects kobo. */
+  const amountKobo = amount
+
   console.log('💳 Initializing Paystack payment:', {
-    amount: amount * 100, // in kobo
+    amountKobo,
     email,
     reference,
     callback_url: callbackUrl,
     hasSecretKey: !!process.env.PAYSTACK_SECRET_KEY,
     secretKeyPrefix: process.env.PAYSTACK_SECRET_KEY?.substring(0, 7)
   })
-  
+
   const requestBody = {
-    amount: amount * 100, // Convert to kobo
+    amount: amountKobo,
     email,
     reference,
     callback_url: callbackUrl,
   }
-  
-  console.log('📤 Paystack API request body:', requestBody)
-  
+
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
     headers: {
@@ -33,27 +39,20 @@ export async function initializePayment(amount: number, email: string, reference
     body: JSON.stringify(requestBody),
   })
 
+  const responseData = await response.json().catch(() => ({}))
+  const paystackOk = responseData?.status === true && responseData?.data?.authorization_url
+
   if (!response.ok) {
-    const errorData =
-      typeof (response as any).json === 'function'
-        ? await (response as any).json().catch(() => ({}))
-        : {}
-    console.error('❌ Paystack API error response:', {
-      status: response.status,
-      statusText: response.statusText,
-      errorData
-    })
-    const errorMessage = errorData.message || 'Failed to initialize payment'
-    throw new Error(errorMessage)
+    const err = responseData?.message || responseData?.error || `HTTP ${response.status}`
+    console.error('❌ Paystack API error:', { status: response.status, errorData: responseData })
+    throw new Error(err)
   }
 
-  const responseData = await response.json()
-  console.log('📥 Paystack API response:', {
-    status: response.status,
-    ok: response.ok,
-    hasAuthorizationUrl: !!responseData?.data?.authorization_url,
-    authorizationUrl: responseData?.data?.authorization_url
-  })
+  if (!paystackOk) {
+    const err = responseData?.message || 'Paystack did not return a payment URL.'
+    console.error('❌ Paystack response missing authorization_url:', responseData)
+    throw new Error(err)
+  }
 
   return responseData
 }

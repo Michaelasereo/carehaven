@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Download } from 'lucide-react'
 import {
   LineChart,
   Line,
@@ -51,26 +49,6 @@ export default function AdminAnalyticsPage() {
     }
   }
 
-  const handleExport = () => {
-    if (!analytics) return
-
-    // Create CSV data
-    const csv = [
-      ['Metric', 'Current', 'Previous', 'Growth Rate'].join(','),
-      ['Users', analytics.users?.current || 0, analytics.users?.previous || 0, `${analytics.users?.growthRate || 0}%`].join(','),
-      ['Revenue', analytics.revenue?.current || 0, analytics.revenue?.previous || 0, `${analytics.revenue?.growthRate || 0}%`].join(','),
-      ['Appointments', analytics.appointments?.current || 0, analytics.appointments?.previous || 0, `${analytics.appointments?.growthRate || 0}%`].join(','),
-    ].join('\n')
-
-    // Download
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `carehaven-analytics-${format(new Date(), 'yyyy-MM-dd')}.csv`
-    a.click()
-  }
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -110,22 +88,16 @@ export default function AdminAnalyticsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Platform Analytics</h1>
-        <div className="flex items-center gap-4">
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={handleExport} variant="outline" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-        </div>
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Key Metrics */}

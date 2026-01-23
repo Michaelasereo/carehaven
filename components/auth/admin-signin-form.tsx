@@ -94,22 +94,34 @@ export function AdminSignInForm() {
       }
 
       // Verify user is admin or super_admin
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single()
 
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
+      if (profileError) {
         await supabase.auth.signOut()
-        setError('Access denied. Admin credentials required.')
+        console.error('Admin sign-in profile fetch error:', profileError)
+        setError(
+          'Could not verify your role. If you are an admin, ensure admin users are set up: run `npm run create:admins` (requires SUPABASE_SERVICE_ROLE_KEY in .env.local), then sign in with that email.'
+        )
         setLoading(false)
         return
       }
 
-      // Admin credentials are valid - send verification code instead of signing in directly
-      // Sign out the temporary session since we'll create a new one after verification
-      await supabase.auth.signOut()
+      if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
+        await supabase.auth.signOut()
+        setError(
+          'Access denied. This account does not have admin access. Sign in with an admin email, or run `npm run create:admins` to create admin users.'
+        )
+        setLoading(false)
+        return
+      }
+
+      // Admin credentials are valid - send verification code for 2FA
+      // IMPORTANT: Keep the session active - we'll redirect directly after code verification
+      // The user is already authenticated, we just need to verify their email/2FA
 
       // Send verification code via Brevo SMTP
       try {

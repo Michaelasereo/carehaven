@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -23,23 +23,93 @@ export function Header() {
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const getUser = async () => {
-      setIsLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
+  // Extract user/profile fetch logic into reusable function
+  const fetchUserAndProfile = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError) {
+        console.error('[Header] Error fetching user:', userError)
+        setUser(null)
+        setProfile(null)
+        setIsLoading(false)
+        return
+      }
+
       if (user) {
         setUser(user)
-        const { data: profileData } = await supabase
+        
+        // Fetch profile with proper error handling
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*, avatar_url')
           .eq('id', user.id)
           .single()
-        setProfile(profileData)
+
+        if (profileError) {
+          console.error('[Header] Error fetching profile:', profileError)
+          // Clear profile state on error to prevent stale data
+          setProfile(null)
+          setIsLoading(false)
+          return
+        }
+
+        // Validate that profile belongs to the current user
+        if (profileData && profileData.id === user.id) {
+          setProfile(profileData)
+        } else {
+          console.warn('[Header] Profile ID mismatch:', {
+            profileId: profileData?.id,
+            userId: user.id,
+          })
+          // Clear profile if IDs don't match
+          setProfile(null)
+        }
+      } else {
+        // No user found, clear state
+        setUser(null)
+        setProfile(null)
       }
+    } catch (error) {
+      console.error('[Header] Unexpected error fetching user/profile:', error)
+      // Clear state on unexpected errors
+      setUser(null)
+      setProfile(null)
+    } finally {
       setIsLoading(false)
     }
-    getUser()
   }, [supabase])
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchUserAndProfile()
+  }, [fetchUserAndProfile])
+
+  // Listen for auth state changes and re-fetch user/profile
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[Header] Auth state changed:', event, session?.user?.id)
+        
+        // Re-fetch user and profile when auth state changes
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+          await fetchUserAndProfile()
+        }
+        
+        // Clear state on sign out
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setProfile(null)
+          setIsLoading(false)
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase, fetchUserAndProfile])
 
   // Subscribe to real-time profile updates (for avatar_url and name changes)
   useEffect(() => {
@@ -57,10 +127,18 @@ export function Header() {
         },
         (payload) => {
           const newData = payload.new as any
-          setProfile((prev: any) => ({
-            ...prev,
-            ...newData,
-          }))
+          // Validate that the update is for the current user
+          if (newData && newData.id === user.id) {
+            setProfile((prev: any) => ({
+              ...prev,
+              ...newData,
+            }))
+          } else {
+            console.warn('[Header] Received profile update for different user:', {
+              updateId: newData?.id,
+              currentUserId: user.id,
+            })
+          }
         }
       )
       .subscribe()
@@ -77,16 +155,23 @@ export function Header() {
 
   // Get display name with "Dr" prefix for doctors
   const getDisplayName = () => {
-    const name = profile?.full_name || user?.email?.split('@')[0] || 'User'
-    if (profile?.role === 'doctor') {
-      return `Dr ${name}`
+    // Ensure profile belongs to current user before using it
+    if (profile && profile.id === user?.id) {
+      const name = profile.full_name || user?.email?.split('@')[0] || 'User'
+      if (profile.role === 'doctor') {
+        return `Dr ${name}`
+      }
+      return name
     }
-    return name
+    // Fallback to user email if profile is not available or doesn't match
+    return user?.email?.split('@')[0] || 'User'
   }
 
   const displayName = getDisplayName()
-  const avatarUrl = profile?.avatar_url || ''
-  const initials = profile?.full_name 
+  // Only use profile data if it belongs to the current user
+  const isValidProfile = profile && profile.id === user?.id
+  const avatarUrl = isValidProfile ? (profile.avatar_url || '') : ''
+  const initials = isValidProfile && profile.full_name
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : displayName.charAt(0).toUpperCase()
 
@@ -140,7 +225,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-        {profile?.role === 'patient' && (
+        {isValidProfile && profile.role === 'patient' && (
           <>
             <Button 
               className="bg-teal-600 hover:bg-teal-700 hidden md:flex min-h-[44px]" 

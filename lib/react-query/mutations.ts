@@ -35,10 +35,39 @@ export function useCreateAppointment() {
           throw new Error(errorMessage)
         }
 
-        const result = await response.json()
+        // Parse JSON response with error handling
+        let result: any
+        try {
+          const responseText = await response.text()
+          if (!responseText) {
+            throw new Error('Empty response received from server')
+          }
+          result = JSON.parse(responseText)
+        } catch (parseError) {
+          console.error('[useCreateAppointment] Failed to parse response:', parseError)
+          throw new Error('Invalid response format: Unable to parse server response')
+        }
+
+        // Validate response structure
+        if (!result) {
+          console.error('[useCreateAppointment] Response is null or undefined')
+          throw new Error('Invalid response: Empty response received from server')
+        }
 
         if (!result.appointment) {
-          throw new Error('Invalid response: appointment not found in response')
+          // Log the actual response structure for debugging
+          console.error('[useCreateAppointment] Invalid response structure:', {
+            hasResult: !!result,
+            resultKeys: result ? Object.keys(result) : [],
+            result: result,
+            status: response.status,
+            statusText: response.statusText,
+          })
+          throw new Error(
+            result.error 
+              ? `Failed to create appointment: ${result.error}`
+              : 'Invalid response: Appointment data not found in server response. Please try again.'
+          )
         }
 
         return result.appointment

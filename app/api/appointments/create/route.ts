@@ -43,18 +43,22 @@ export async function POST(request: Request) {
     // Validate required fields
     const normalizedSymptoms = symptoms_description || chief_complaint
 
-    if (!patient_id || !doctor_id || !scheduled_at || !normalizedSymptoms) {
+    if (!doctor_id || !scheduled_at || !normalizedSymptoms) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    // Verify patient_id matches authenticated user
-    if (patient_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Cannot create appointment for another user' },
-        { status: 403 }
+    // Use server-authenticated user ID (ignore client-supplied patient_id for security)
+    // This avoids session mismatch issues between client localStorage and server cookies
+    // and is more secure (don't trust client-supplied user IDs)
+    const validatedPatientId = user.id
+    
+    // Log if client-supplied patient_id differs (for debugging session issues)
+    if (patient_id && patient_id !== validatedPatientId) {
+      console.warn(
+        `[appointments/create] Client-supplied patient_id (${patient_id}) differs from authenticated user (${validatedPatientId}). Using authenticated user ID.`
       )
     }
 
@@ -133,11 +137,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create appointment
+    // Create appointment using server-validated patient ID
     const { data: appointment, error: createError } = await supabase
       .from('appointments')
       .insert({
-        patient_id,
+        patient_id: validatedPatientId,
         doctor_id,
         scheduled_at: scheduledDate.toISOString(),
         duration_minutes,

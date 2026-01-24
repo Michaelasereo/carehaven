@@ -25,7 +25,7 @@ import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import { createClient } from '@/lib/supabase/client'
 import { isTimeAvailable, getAvailableTimeSlots, type AvailabilitySlot } from '@/lib/utils/availability'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getConsultationDurationClient, getConsultationPriceClient } from '@/lib/admin/system-settings-client'
 import { useToast } from '@/components/ui/toast'
 
@@ -41,6 +41,7 @@ type AppointmentFormData = z.infer<typeof appointmentSchema>
 export function BookAppointmentForm() {
   const router = useRouter()
   const supabase = createClient()
+  const queryClient = useQueryClient()
   const createAppointment = useCreateAppointment()
   const { addToast } = useToast()
   
@@ -59,12 +60,6 @@ export function BookAppointmentForm() {
   const [consultationPrice, setConsultationPrice] = useState<number>(5000) // Default 50 naira (5000 kobo)
   const [consultationDuration, setConsultationDuration] = useState<number>(45) // Default 45 minutes
   const [chronicConditions, setChronicConditions] = useState<string[]>([])
-  const [gender, setGender] = useState<string>('')
-  const [age, setAge] = useState<string>('')
-  const [isGenderLocked, setIsGenderLocked] = useState(false)
-  const [isAgeLocked, setIsAgeLocked] = useState(false)
-  const [genderError, setGenderError] = useState<string>('')
-  const [ageError, setAgeError] = useState<string>('')
   const BUFFER_MINUTES = 15 // Buffer time between appointments
   const storageKey = 'carehaven.booking.form'
 
@@ -83,46 +78,12 @@ export function BookAppointmentForm() {
   const watchedScheduledAt = watch('scheduled_at')
   const watchedAmount = watch('amount')
 
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob)
-    if (Number.isNaN(birthDate.getTime())) return ''
-    const today = new Date()
-    let years = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      years -= 1
-    }
-    return years.toString()
-  }
-
+  // Prefetch doctors when on step 1 so the list is ready by step 2
   useEffect(() => {
-    const loadProfileDemographics = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('gender, date_of_birth')
-        .eq('id', user.id)
-        .single()
-      if (!profile) return
-
-      if (profile.gender) {
-        setGender(profile.gender)
-        setIsGenderLocked(true)
-        setGenderError('')
-      }
-      if (profile.date_of_birth) {
-        const calculatedAge = calculateAge(profile.date_of_birth)
-        if (calculatedAge) {
-          setAge(calculatedAge)
-          setIsAgeLocked(true)
-          setAgeError('')
-        }
-      }
+    if (step === 1) {
+      queryClient.prefetchQuery({ queryKey: ['doctors'] })
     }
-
-    loadProfileDemographics()
-  }, [supabase])
+  }, [step, queryClient])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -139,8 +100,6 @@ export function BookAppointmentForm() {
         }
         selectedDate?: string
         selectedTime?: string
-        gender?: string
-        age?: string
         chronicConditions?: string[]
         pendingAppointmentId?: string | null
         formValues?: {
@@ -158,8 +117,6 @@ export function BookAppointmentForm() {
       }
       if (parsed.selectedDate) setSelectedDate(parsed.selectedDate)
       if (parsed.selectedTime) setSelectedTime(parsed.selectedTime)
-      if (parsed.gender) setGender(parsed.gender)
-      if (parsed.age) setAge(parsed.age)
       if (Array.isArray(parsed.chronicConditions)) setChronicConditions(parsed.chronicConditions)
       if (parsed.pendingAppointmentId) setPendingAppointmentId(parsed.pendingAppointmentId)
       if (parsed.formValues?.symptoms_description) {
@@ -183,8 +140,6 @@ export function BookAppointmentForm() {
       selectedDoctor,
       selectedDate,
       selectedTime,
-      gender,
-      age,
       chronicConditions,
       pendingAppointmentId,
       formValues: {
@@ -200,8 +155,6 @@ export function BookAppointmentForm() {
     selectedDoctor,
     selectedDate,
     selectedTime,
-    gender,
-    age,
     chronicConditions,
     pendingAppointmentId,
     symptomsDescription,
@@ -242,18 +195,26 @@ export function BookAppointmentForm() {
             }
           }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
             isSubscribed = true
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error('Realtime subscription error for consultation price:', status)
+            // Log but don't spam console - this might be due to realtime not being available
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(`⚠️ Realtime subscription ${status} for consultation price. This is non-critical - price will still update on page refresh.`)
+              if (err) {
+                console.warn('   Error details:', err)
+              }
+            }
             isSubscribed = false
-            // Attempt reconnection after 5 seconds
+            // Wait longer before reconnection to avoid hammering the server
             reconnectTimeoutId = setTimeout(() => {
               if (!isSubscribed) {
                 setupSubscription()
               }
-            }, 5000)
+            }, 10000) // Wait 10 seconds before reconnection
+          } else if (status === 'CLOSED') {
+            isSubscribed = false
           }
         })
 
@@ -286,53 +247,28 @@ export function BookAppointmentForm() {
     fetchDuration()
 
     // Subscribe to real-time duration changes
-    let reconnectTimeoutId: NodeJS.Timeout
-    let isSubscribed = false
-
-    const setupSubscription = () => {
-      const channel = supabase
-        .channel('system-settings-duration-booking')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'system_settings',
-          },
-          async () => {
-            try {
-              const newDuration = await getConsultationDurationClient()
-              setConsultationDuration(newDuration)
-            } catch (error) {
-              console.error('Error fetching consultation duration:', error)
-            }
+    const channel = supabase
+      .channel('system-settings-duration-booking')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'system_settings',
+        },
+        async () => {
+          try {
+            const newDuration = await getConsultationDurationClient()
+            setConsultationDuration(newDuration)
+          } catch (error) {
+            console.error('Error fetching consultation duration:', error)
           }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            isSubscribed = true
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error('Realtime subscription error for consultation duration:', status)
-            isSubscribed = false
-            // Attempt reconnection after 5 seconds
-            reconnectTimeoutId = setTimeout(() => {
-              if (!isSubscribed) {
-                setupSubscription()
-              }
-            }, 5000)
-          }
-        })
-
-      return channel
-    }
-
-    const channel = setupSubscription()
+        }
+      )
+      .subscribe()
 
     return () => {
-      clearTimeout(reconnectTimeoutId)
-      if (channel) {
-        supabase.removeChannel(channel)
-      }
+      supabase.removeChannel(channel)
     }
   }, [supabase])
 
@@ -436,25 +372,20 @@ export function BookAppointmentForm() {
     }
   }, [selectedDoctor?.id, supabase, refetchAvailability])
 
-  // Fetch existing appointments for conflict checking
+  // Fetch existing appointments for conflict checking (via API with service role so we see all of the doctor's bookings)
   const { data: existingAppointments } = useQuery({
     queryKey: ['doctor-appointments', selectedDoctor?.id, selectedDate],
     queryFn: async () => {
       if (!selectedDoctor?.id || !selectedDate) return []
-      
-      const startOfDay = new Date(`${selectedDate}T00:00:00`)
-      const endOfDay = new Date(`${selectedDate}T23:59:59`)
-      
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('scheduled_at, duration_minutes')
-        .eq('doctor_id', selectedDoctor.id)
-        .gte('scheduled_at', startOfDay.toISOString())
-        .lte('scheduled_at', endOfDay.toISOString())
-        .in('status', ['scheduled', 'confirmed', 'in_progress'])
-
-      if (error) throw error
-      return data || []
+      const res = await fetch(
+        `/api/availability/doctor/${selectedDoctor.id}?date=${selectedDate}`
+      )
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `Failed to fetch doctor availability (${res.status})`)
+      }
+      const { slots } = (await res.json()) as { slots: Array<{ scheduled_at: string; duration_minutes: number }> }
+      return slots || []
     },
     enabled: !!selectedDoctor?.id && !!selectedDate,
   })
@@ -582,29 +513,7 @@ export function BookAppointmentForm() {
 
   // Step 1: Enter Details
   const handleStep1Next = () => {
-    // Reset errors
-    setGenderError('')
-    setAgeError('')
-    
     if (!symptomsDescription || symptomsDescription.length < 5) {
-      return
-    }
-    
-    // Validate gender
-    if (!gender) {
-      setGenderError('Gender is required')
-      return
-    }
-    
-    // Validate age
-    if (!age || age.trim() === '') {
-      setAgeError('Age is required')
-      return
-    }
-    
-    const ageNum = parseInt(age, 10)
-    if (isNaN(ageNum) || ageNum < 0 || ageNum > 150) {
-      setAgeError('Please enter a valid age (0-150)')
       return
     }
     
@@ -887,54 +796,11 @@ export function BookAppointmentForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="gender">Gender *</Label>
-                <Select value={gender} onValueChange={(value) => {
-                  setGender(value)
-                  if (genderError) setGenderError('')
-                }} disabled={isGenderLocked}>
-                  <SelectTrigger id="gender" className="min-h-[44px] sm:min-h-0" disabled={isGenderLocked}>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                {genderError && (
-                  <p className="mt-1 text-sm text-red-600">{genderError}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="age">Age *</Label>
-                <Input
-                  id="age"
-                  type="number"
-                  min="0"
-                  max="150"
-                  value={age}
-                  onChange={(e) => {
-                    setAge(e.target.value)
-                    if (ageError) setAgeError('')
-                  }}
-                  placeholder="Enter age"
-                  className="min-h-[44px] sm:min-h-0"
-                  disabled={isAgeLocked}
-                />
-                {ageError && (
-                  <p className="mt-1 text-sm text-red-600">{ageError}</p>
-                )}
-              </div>
-            </div>
-
             <Button
               type="button"
               onClick={handleStep1Next}
               className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 min-h-[44px] sm:min-h-0"
-              disabled={!symptomsDescription || symptomsDescription.length < 5 || !gender || !age}
+              disabled={!symptomsDescription || symptomsDescription.length < 5}
             >
               Next
             </Button>

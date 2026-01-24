@@ -37,88 +37,64 @@ export function MetricCard({
     if (!realtimeTable) return
 
     let timeoutId: NodeJS.Timeout
-    let reconnectTimeoutId: NodeJS.Timeout
-    let isSubscribed = false
 
-    const setupSubscription = () => {
-      const channel = supabase
-        .channel(`patient-metrics-${label.toLowerCase().replace(/\s+/g, '-')}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: realtimeTable,
-            filter: realtimeFilter ? Object.entries(realtimeFilter).map(([key, val]) => `${key}=eq.${val}`).join(',') : undefined,
-          },
-          () => {
-            // Debounce updates (500ms)
-            clearTimeout(timeoutId)
-            timeoutId = setTimeout(async () => {
-              try {
-                if (realtimeTable === 'appointments') {
-                  const { count, error } = await supabase
-                    .from('appointments')
-                    .select('*', { count: 'exact', head: true })
-                    .match(realtimeFilter || {})
-                  if (error) {
-                    console.error(`Error fetching ${realtimeTable} count:`, error)
-                    return
-                  }
-                  if (count !== null) setValue(count)
-                } else if (realtimeTable === 'notifications') {
-                  const { count, error } = await supabase
-                    .from('notifications')
-                    .select('*', { count: 'exact', head: true })
-                    .match(realtimeFilter || {})
-                  if (error) {
-                    console.error(`Error fetching ${realtimeTable} count:`, error)
-                    return
-                  }
-                  if (count !== null) setValue(count)
-                } else if (realtimeTable === 'investigations') {
-                  const { count, error } = await supabase
-                    .from('investigations')
-                    .select('*', { count: 'exact', head: true })
-                    .match(realtimeFilter || {})
-                  if (error) {
-                    console.error(`Error fetching ${realtimeTable} count:`, error)
-                    return
-                  }
-                  if (count !== null) setValue(count)
+    const channel = supabase
+      .channel(`patient-metrics-${label.toLowerCase().replace(/\s+/g, '-')}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: realtimeTable,
+          filter: realtimeFilter ? Object.entries(realtimeFilter).map(([key, val]) => `${key}=eq.${val}`).join(',') : undefined,
+        },
+        () => {
+          // Debounce updates (500ms)
+          clearTimeout(timeoutId)
+          timeoutId = setTimeout(async () => {
+            try {
+              if (realtimeTable === 'appointments') {
+                const { count, error } = await supabase
+                  .from('appointments')
+                  .select('*', { count: 'exact', head: true })
+                  .match(realtimeFilter || {})
+                if (error) {
+                  console.error(`Error fetching ${realtimeTable} count:`, error)
+                  return
                 }
-              } catch (error) {
-                console.error(`Error updating ${realtimeTable} metric:`, error)
+                if (count !== null) setValue(count)
+              } else if (realtimeTable === 'notifications') {
+                const { count, error } = await supabase
+                  .from('notifications')
+                  .select('*', { count: 'exact', head: true })
+                  .match(realtimeFilter || {})
+                if (error) {
+                  console.error(`Error fetching ${realtimeTable} count:`, error)
+                  return
+                }
+                if (count !== null) setValue(count)
+              } else if (realtimeTable === 'investigations') {
+                const { count, error } = await supabase
+                  .from('investigations')
+                  .select('*', { count: 'exact', head: true })
+                  .match(realtimeFilter || {})
+                if (error) {
+                  console.error(`Error fetching ${realtimeTable} count:`, error)
+                  return
+                }
+                if (count !== null) setValue(count)
               }
-            }, 500)
-          }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            isSubscribed = true
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error(`Realtime subscription error for ${realtimeTable}:`, status)
-            isSubscribed = false
-            // Attempt reconnection after 5 seconds
-            reconnectTimeoutId = setTimeout(() => {
-              if (!isSubscribed) {
-                setupSubscription()
-              }
-            }, 5000)
-          }
-        })
-
-      return channel
-    }
-
-    const channel = setupSubscription()
+            } catch (error) {
+              console.error(`Error updating ${realtimeTable} metric:`, error)
+            }
+          }, 500)
+        }
+      )
+      .subscribe()
 
     return () => {
       clearTimeout(timeoutId)
-      clearTimeout(reconnectTimeoutId)
-      if (channel) {
-        supabase.removeChannel(channel)
-      }
+      supabase.removeChannel(channel)
     }
   }, [realtimeTable, realtimeFilter, label, supabase])
 

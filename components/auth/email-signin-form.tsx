@@ -62,12 +62,6 @@ export function EmailSignInForm() {
     setError(null)
     setLoading(true)
 
-    // #region agent log
-    if (process.env.NODE_ENV === 'development') {
-      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'email-signin-form.tsx:60',message:'handleSubmit called',data:{email:formData.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-    }
-    // #endregion
-
     // Validate inputs
     if (!formData.email || !formData.password) {
       setError('Please fill in all fields')
@@ -90,12 +84,6 @@ export function EmailSignInForm() {
 
       console.log('Attempting sign in via server API...')
 
-      // #region agent log
-      if (process.env.NODE_ENV === 'development') {
-        fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'email-signin-form.tsx:87',message:'Calling server-side sign-in API',data:{email:formData.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'COOKIE_FIX'})}).catch(()=>{});
-      }
-      // #endregion
-
       // Use server-side API route which sets cookies properly
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
@@ -108,12 +96,6 @@ export function EmailSignInForm() {
       })
 
       const apiData = await response.json()
-
-      // #region agent log
-      if (process.env.NODE_ENV === 'development') {
-        fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'email-signin-form.tsx:105',message:'Server API response',data:{success:apiData.success,hasUser:!!apiData.user,error:apiData.error,status:response.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'COOKIE_FIX'})}).catch(()=>{});
-      }
-      // #endregion
 
       if (!response.ok || !apiData.success) {
         // User-friendly error messages
@@ -167,11 +149,6 @@ export function EmailSignInForm() {
       return
 
     } catch (err) {
-      // #region agent log
-      if (process.env.NODE_ENV === 'development') {
-        fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'email-signin-form.tsx:217',message:'Unexpected error in handleSubmit',data:{error:String(err),stack:err instanceof Error?err.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'ALL'})}).catch(()=>{});
-      }
-      // #endregion
       console.error('Unexpected error during sign in:', err)
       setError('An unexpected error occurred. Please try again.')
       setLoading(false)

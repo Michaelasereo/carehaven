@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/toast'
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(1, 'Phone number is required').regex(/^[0-9+\-\s()]+$/, 'Please enter a valid phone number'),
-  date_of_birth: z.string().optional(),
+  age: z.string().optional(),
   gender: z.enum(['male', 'female', 'other']).optional(),
 })
 
@@ -58,7 +58,7 @@ export function CompleteProfileForm() {
         .update({
           full_name: data.full_name,
           phone: data.phone,
-          date_of_birth: data.date_of_birth ? new Date(data.date_of_birth).toISOString() : null,
+          age: data.age ? parseInt(data.age, 10) : null,
           gender: data.gender,
           profile_completed: true,
           onboarded_at: new Date().toISOString(),
@@ -127,11 +127,14 @@ export function CompleteProfileForm() {
       </div>
 
       <div>
-        <Label htmlFor="date_of_birth">Date of Birth</Label>
+        <Label htmlFor="age">Age</Label>
         <Input
-          id="date_of_birth"
-          type="date"
-          {...register('date_of_birth')}
+          id="age"
+          type="number"
+          min="0"
+          max="150"
+          placeholder="Enter your age"
+          {...register('age')}
         />
       </div>
 

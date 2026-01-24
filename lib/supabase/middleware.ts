@@ -48,12 +48,6 @@ export async function updateSession(request: NextRequest) {
     error,
   } = await supabase.auth.getUser()
 
-  // #region agent log
-  if (process.env.NODE_ENV === 'development') {
-    fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:45',message:'Middleware auth check',data:{path:request.nextUrl.pathname,hasUser:!!user,userId:user?.id,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
-  }
-  // #endregion
-
   // Log for debugging
   if (process.env.NODE_ENV === 'development') {
     console.log('[Middleware]', {
@@ -77,11 +71,6 @@ export async function updateSession(request: NextRequest) {
 
   // If user is not signed in and the current path is not public or auth route
   if (!user && !isPublicRoute && !isAuthRoute && !isAuthApiRoute) {
-    // #region agent log
-    if (process.env.NODE_ENV === 'development') {
-      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:72',message:'Middleware redirecting unauthenticated user',data:{path:request.nextUrl.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
-    }
-    // #endregion
     const baseUrl = getBaseUrl(request)
     const url = new URL('/auth/signin', baseUrl)
     url.searchParams.set('redirect', request.nextUrl.pathname)
@@ -91,11 +80,6 @@ export async function updateSession(request: NextRequest) {
   // If user is signed in and trying to access auth routes
   // Allow handle-signin to process (it will redirect itself)
   if (user && isAuthRoute && request.nextUrl.pathname !== '/auth/callback' && request.nextUrl.pathname !== '/auth/handle-signin') {
-    // #region agent log
-    if (process.env.NODE_ENV === 'development') {
-      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:79',message:'Middleware checking profile for authenticated user on auth route',data:{path:request.nextUrl.pathname,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
-    }
-    // #endregion
     // Get user role and redirect to appropriate dashboard
     const { data: profile } = await supabase
       .from('profiles')
@@ -104,11 +88,6 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (!profile?.profile_completed) {
-      // #region agent log
-      if (process.env.NODE_ENV === 'development') {
-        fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:87',message:'Middleware redirecting to complete-profile',data:{profileCompleted:profile?.profile_completed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
-      }
-      // #endregion
       const baseUrl = getBaseUrl(request)
       return NextResponse.redirect(new URL('/complete-profile', baseUrl))
     }
@@ -118,11 +97,6 @@ export async function updateSession(request: NextRequest) {
     if (profile.role === 'admin') redirectPath = '/admin/dashboard'
     if (profile.role === 'super_admin') redirectPath = '/admin/dashboard'
 
-    // #region agent log
-    if (process.env.NODE_ENV === 'development') {
-      fetch('http://127.0.0.1:7243/ingest/8cdf461f-7383-47f6-8fc5-cfaafbecd6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'middleware.ts:96',message:'Middleware redirecting authenticated user from auth route',data:{redirectPath,role:profile.role},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H7'})}).catch(()=>{});
-    }
-    // #endregion
     const baseUrl = getBaseUrl(request)
     return NextResponse.redirect(new URL(redirectPath, baseUrl))
   }

@@ -164,13 +164,15 @@ export async function POST(request: Request) {
 
         const { data: patient } = await supabase
           .from('profiles')
-          .select('full_name, chronic_conditions, gender, date_of_birth')
+          .select('full_name, chronic_conditions, gender, age, date_of_birth')
           .eq('id', appointment.patient_id)
           .single()
 
-        // Calculate age from date_of_birth if available
+        // Use age field if available, otherwise calculate from date_of_birth for backward compatibility
         let age: string | undefined
-        if (patient?.date_of_birth) {
+        if (patient?.age !== null && patient?.age !== undefined) {
+          age = String(patient.age)
+        } else if (patient?.date_of_birth) {
           const birthDate = new Date(patient.date_of_birth)
           const today = new Date()
           const calculatedAge = today.getFullYear() - birthDate.getFullYear()

@@ -24,6 +24,11 @@ const profileSchema = z.object({
   full_name: z.string().min(2),
   email: z.string().email(),
   phone: z.string().min(1, 'Phone number is required').regex(/^[0-9+\-\s()]+$/, 'Please enter a valid phone number').optional(),
+  age: z.string().optional().refine((val) => {
+    if (!val) return true
+    const num = parseInt(val, 10)
+    return !isNaN(num) && num >= 0 && num <= 150
+  }, 'Age must be between 0 and 150'),
   gender: z.enum(['male', 'female', 'other']).optional(),
 })
 
@@ -57,6 +62,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       full_name: profile?.full_name || '',
       email: profile?.email || '',
       phone: profile?.phone || '',
+      age: profile?.age ? String(profile.age) : '',
       gender: profile?.gender || undefined,
     },
   })
@@ -92,10 +98,19 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         .from('profiles')
         .update({ avatar_url: publicUrl })
         .eq('id', user.id)
+        .select('*')
 
       if (updateError) throw updateError
 
       setAvatarUrl(publicUrl)
+      
+      // Trigger a custom event to notify the header component
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('profile-avatar-updated', {
+          detail: { avatarUrl: publicUrl, userId: user.id }
+        }))
+      }
+      
       router.refresh()
       
       // Add success toast
@@ -170,25 +185,86 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         return
       }
 
-      const { data: updateResult, error } = await supabase
+      let updateResult: any[] | null = null
+      let updateError: any = null
+
+      // Try updating with all fields including age
+      const { data: updateData, error: updateErrorResponse } = await supabase
         .from('profiles')
         .update({ 
           full_name: data.full_name,
           phone: data.phone || null,
+          age: data.age ? parseInt(data.age, 10) : null,
           gender: data.gender || null
         })
         .eq('id', user.id)
-        .select()
+        .select('*')
 
-      if (error) {
+      updateResult = updateData
+      updateError = updateErrorResponse
+
+      // Handle schema cache errors specifically for age column
+      if (updateError && (updateError.message?.includes('age') || updateError.message?.includes('schema cache'))) {
+        console.warn('Schema cache error detected for age column, retrying without age first')
+        
+        // Retry without age if schema cache error
+        const { data: retryData, error: retryError } = await supabase
+          .from('profiles')
+          .update({ 
+            full_name: data.full_name,
+            phone: data.phone || null,
+            gender: data.gender || null
+          })
+          .eq('id', user.id)
+          .select('*')
+        
+        if (retryError) {
+          console.error('Retry update failed:', retryError)
+          throw retryError
+        }
+        
+        if (!retryData || retryData.length === 0) {
+          throw new Error('Profile update failed: No rows were updated')
+        }
+        
+        // Update result with retry data
+        updateResult = retryData
+        
+        // If retry succeeded, try updating age separately
+        if (data.age) {
+          const { error: ageError } = await supabase
+            .from('profiles')
+            .update({ age: parseInt(data.age, 10) })
+            .eq('id', user.id)
+            .select('*')
+          
+          if (ageError) {
+            console.warn('Failed to update age separately:', ageError)
+            // Don't throw - other fields were updated successfully
+            // Age will be updated on next form submission or page refresh
+          } else {
+            // If age update succeeded, refetch the full profile
+            const { data: fullProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single()
+            
+            if (fullProfile) {
+              updateResult = [fullProfile]
+            }
+          }
+        }
+      } else if (updateError) {
+        // For other errors, throw immediately
         console.error('Supabase error updating profile:', {
-          error,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
+          error: updateError,
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+          code: updateError.code,
         })
-        throw error
+        throw updateError
       }
 
       if (!updateResult || updateResult.length === 0) {
@@ -199,7 +275,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       // Small delay to allow real-time subscription to trigger
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      router.refresh()
+      // Trigger a custom event to notify the header component
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('profile-updated', {
+          detail: { userId: user.id }
+        }))
+      }
+
+      // Reset loading and editing state before router.refresh() to ensure state is reset
+      setIsLoading(false)
       setIsEditing(false)
       
       // Add success toast
@@ -208,6 +292,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         title: 'Success',
         description: 'Profile updated successfully!',
       })
+
+      router.refresh()
     } catch (error: any) {
       console.error('Error updating profile:', {
         error,
@@ -314,6 +400,23 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         </div>
 
         <div>
+          <Label htmlFor="age">Age</Label>
+          <Input
+            id="age"
+            type="number"
+            min="0"
+            max="150"
+            placeholder="Enter your age"
+            {...register('age')}
+            disabled={!isEditing}
+            className="min-h-[44px] sm:min-h-0"
+          />
+          {errors.age && (
+            <p className="mt-1 text-sm text-red-600">{errors.age.message}</p>
+          )}
+        </div>
+
+        <div>
           <Label htmlFor="gender">Gender</Label>
           <Select 
             value={watch('gender') || ''} 
@@ -354,6 +457,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                   full_name: profile?.full_name || '',
                   email: profile?.email || '',
                   phone: profile?.phone || '',
+                  age: profile?.age ? String(profile.age) : '',
                   gender: profile?.gender || undefined,
                 })
                 setIsEditing(false)

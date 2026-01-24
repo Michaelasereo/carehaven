@@ -22,6 +22,13 @@ export function NotificationBell({ userId: propUserId }: NotificationBellProps) 
   const { data: notifications, isLoading } = useNotifications(userId)
   const unreadCount = notifications?.filter(n => !n.read).length || 0
 
+  // Debug: Log notifications when they change
+  useEffect(() => {
+    if (notifications) {
+      console.log('[NotificationBell] Notifications:', notifications.length, 'Unread:', unreadCount)
+    }
+  }, [notifications, unreadCount])
+
   useEffect(() => {
     if (!propUserId) {
       const getUser = async () => {

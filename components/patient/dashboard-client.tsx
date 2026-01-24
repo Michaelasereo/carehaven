@@ -35,7 +35,7 @@ export function PatientDashboardClient({
         .select('*, profiles!appointments_doctor_id_fkey(*)')
         .eq('patient_id', patientId)
         .order('scheduled_at', { ascending: true })
-        .limit(5)
+        .limit(3)
 
       if (appointments) {
         setAppointments(appointments)
@@ -44,13 +44,16 @@ export function PatientDashboardClient({
 
     // Fetch recent notifications
     const fetchRecentNotifications = async () => {
-      const { data: notifications } = await supabase
+      const { data: notifications, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', patientId)
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(3)
 
+      if (error) {
+        console.error('[Dashboard] Notifications fetch error:', error)
+      }
       if (notifications) {
         setRecentNotifications(notifications)
       }
@@ -100,25 +103,6 @@ export function PatientDashboardClient({
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <Card className="p-4 md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm text-gray-600">Welcome back</p>
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
-              {profile.full_name || 'Patient'}
-            </h2>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/patient/book-appointment">
-              <Button className="bg-teal-600 hover:bg-teal-700 min-h-[44px]">Book New Appointment</Button>
-            </Link>
-            <Link href="/patient/prescriptions">
-              <Button variant="outline" className="min-h-[44px]">View Prescriptions</Button>
-            </Link>
-          </div>
-        </div>
-      </Card>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <Card className="p-4 md:p-6">
           <div className="flex items-center justify-between mb-3 md:mb-4">

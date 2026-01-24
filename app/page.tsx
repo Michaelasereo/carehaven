@@ -56,13 +56,30 @@ export default async function Home() {
       .order('display_order', { ascending: true })
       .limit(displayCount)
     
-    if (!error && faqData) {
+    if (error) {
+      // Log detailed error information
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching FAQs:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          error: error,
+        })
+      }
+      // Fallback to empty array on error
+      faqs = []
+    } else if (faqData) {
       faqs = faqData
-    } else if (error) {
-      console.error('Error fetching FAQs:', error)
     }
   } catch (error) {
-    console.error('Error fetching FAQs:', error)
+    // Handle unexpected errors
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Unexpected error fetching FAQs:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error,
+      })
+    }
     // Fallback to empty array if fetch fails
     faqs = []
   }

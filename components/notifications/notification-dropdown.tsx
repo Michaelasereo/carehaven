@@ -43,6 +43,11 @@ export function NotificationDropdown({
 }: NotificationDropdownProps) {
   const unreadCount = notifications.filter((n) => !n.read).length
 
+  // Debug: Log notifications when dropdown renders
+  React.useEffect(() => {
+    console.log('[NotificationDropdown] Rendering with notifications:', notifications.length)
+  }, [notifications])
+
   const getNotificationLink = (notification: Notification): string => {
     const { type, data } = notification
     switch (type) {

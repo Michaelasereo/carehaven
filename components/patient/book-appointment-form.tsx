@@ -78,6 +78,25 @@ export function BookAppointmentForm() {
   const watchedScheduledAt = watch('scheduled_at')
   const watchedAmount = watch('amount')
 
+  // Sync state values to form values
+  useEffect(() => {
+    if (selectedDoctor?.id && !watchedDoctorId) {
+      setValue('doctor_id', selectedDoctor.id)
+    }
+  }, [selectedDoctor?.id, watchedDoctorId, setValue])
+
+  useEffect(() => {
+    if (selectedDate && selectedTime && !watchedScheduledAt) {
+      setValue('scheduled_at', `${selectedDate}T${selectedTime}`)
+    }
+  }, [selectedDate, selectedTime, watchedScheduledAt, setValue])
+
+  useEffect(() => {
+    if (consultationPrice && !watchedAmount) {
+      setValue('amount', consultationPrice)
+    }
+  }, [consultationPrice, watchedAmount, setValue])
+
   // Prefetch doctors when on step 1 so the list is ready by step 2
   useEffect(() => {
     if (step === 1) {
@@ -338,6 +357,8 @@ export function BookAppointmentForm() {
       return formattedData
     },
     enabled: !!selectedDoctor?.id,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (formerly cacheTime)
   })
 
   // Subscribe to real-time availability changes
@@ -492,6 +513,17 @@ export function BookAppointmentForm() {
       console.error('❌ Form validation failed:', errors)
       console.error('Validation error details:', JSON.stringify(errors, null, 2))
       
+      // Ensure form values are set from state before showing errors
+      if (!watch('doctor_id') && selectedDoctor?.id) {
+        setValue('doctor_id', selectedDoctor.id)
+      }
+      if (!watch('scheduled_at') && selectedDate && selectedTime) {
+        setValue('scheduled_at', `${selectedDate}T${selectedTime}`)
+      }
+      if (!watch('amount') && consultationPrice) {
+        setValue('amount', consultationPrice)
+      }
+      
       // Get all form values to debug
       const formValues = {
         doctor_id: watch('doctor_id'),
@@ -521,47 +553,39 @@ export function BookAppointmentForm() {
   }
 
   // Step 2: Select Doctor
-  const handleDoctorSelect = (doctorId: string) => {
-    console.log('👨‍⚕️ Doctor selected:', doctorId)
-    // Fetch doctor details
-    supabase
-      .from('profiles')
-      .select('id, full_name, specialty, consultation_fee')
-      .eq('id', doctorId)
-      .single()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('❌ Error fetching doctor details:', error)
-          return
-        }
-        if (data && !error) {
-          console.log('✅ Doctor details loaded:', {
-            id: data.id,
-            name: data.full_name,
-            specialty: data.specialty
-          })
-          setSelectedDoctor({
-            id: data.id,
-            name: data.full_name || 'Dr. Unknown',
-            specialty: data.specialty,
-            fee: data.consultation_fee,
-          })
-          setValue('doctor_id', data.id)
-          setValue('amount', consultationPrice)
-          // Reset date/time when doctor changes
-          setSelectedDate('')
-          setSelectedTime('')
-          setAvailabilityError(null)
-          setStep(3)
-          console.log('📍 Moved to step 3. Availability query should trigger for doctor:', data.id)
-        }
-      })
+  // Accept full doctor object from the list (already fetched from API) instead of fetching again
+  const handleDoctorSelect = (doctor: {
+    id: string
+    full_name: string | null
+    specialty: string | null
+    consultation_fee: number | null
+  }) => {
+    console.log('👨‍⚕️ Doctor selected:', doctor.id, doctor.full_name)
+    
+    setSelectedDoctor({
+      id: doctor.id,
+      name: doctor.full_name || 'Dr. Unknown',
+      specialty: doctor.specialty,
+      fee: doctor.consultation_fee, // Store for reference, but don't use for price
+    })
+    setValue('doctor_id', doctor.id)
+    setValue('amount', consultationPrice) // Keep using universal price from admin settings
+    // Reset date/time when doctor changes
+    setSelectedDate('')
+    setSelectedTime('')
+    setAvailabilityError(null)
+    setStep(3)
+    console.log('📍 Moved to step 3. Availability query should trigger for doctor:', doctor.id)
   }
 
   // Step 3: Date/Time Selection - Move to Step 4
   const handleStep3Next = () => {
     if (!selectedDate || !selectedTime || availableTimeSlots.length === 0 || availabilityError) {
       return
+    }
+    // Ensure scheduled_at is set in form when moving to next step
+    if (selectedDate && selectedTime) {
+      setValue('scheduled_at', `${selectedDate}T${selectedTime}`)
     }
     setStep(4)
   }
@@ -868,6 +892,8 @@ export function BookAppointmentForm() {
                           const formatted = `${year}-${month}-${day}`
                           setSelectedDate(formatted)
                           setSelectedTime('')
+                          // Clear scheduled_at when date changes
+                          setValue('scheduled_at', '')
                           setAvailabilityError(null)
                         }}
                         minDate={new Date()}
@@ -937,6 +963,10 @@ export function BookAppointmentForm() {
                                 type="button"
                                 onClick={() => {
                                   setSelectedTime(time)
+                                  // Update scheduled_at when time is selected
+                                  if (selectedDate && time) {
+                                    setValue('scheduled_at', `${selectedDate}T${time}`)
+                                  }
                                   if (selectedDate) {
                                     const dateTime = `${selectedDate}T${time}`
                                     setValue('scheduled_at', dateTime)

@@ -19,7 +19,7 @@ interface DoctorCardProps {
     avatar_url: string | null
     years_experience: number | string | null
   }
-  onSelect?: (doctorId: string) => void
+  onSelect?: (doctor: DoctorCardProps['doctor']) => void
 }
 
 export function DoctorCard({ doctor, onSelect }: DoctorCardProps) {
@@ -44,7 +44,7 @@ export function DoctorCard({ doctor, onSelect }: DoctorCardProps) {
 
   const handleSelect = () => {
     if (onSelect) {
-      onSelect(doctor.id)
+      onSelect(doctor)
     }
   }
 

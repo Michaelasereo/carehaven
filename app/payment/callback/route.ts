@@ -6,6 +6,30 @@ import { getConsultationDuration } from '@/lib/admin/system-settings'
 import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail, formatDoctorName } from '@/lib/notifications/triggers'
 
 /**
+ * Get the correct base URL for redirects
+ * Uses environment variables as source of truth to avoid internal deployment URLs
+ */
+function getBaseUrl(): string {
+  // Priority 1: Environment variable (most reliable)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL
+  }
+  
+  // Priority 2: Vercel URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  
+  // Priority 3: Netlify URL
+  if (process.env.URL) {
+    return process.env.URL
+  }
+  
+  // Default: local development
+  return 'http://localhost:3000'
+}
+
+/**
  * Payment Callback Handler
  * 
  * This endpoint handles user redirects from Paystack after payment.
@@ -19,24 +43,29 @@ import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAp
  * is the primary verification mechanism and should handle most payment confirmations.
  */
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
+  const requestUrl = new URL(request.url)
+  const { searchParams } = requestUrl
   const reference = searchParams.get('reference')
+  const trxref = searchParams.get('trxref')
+  const paymentReference = reference || trxref
   const error = searchParams.get('error')
 
+  const BASE_URL = getBaseUrl()
+
   // Handle payment cancellation or errors
-  if (error || !reference) {
+  if (error || !paymentReference) {
     return NextResponse.redirect(
-      new URL('/patient/appointments?error=payment_failed', request.url)
+      `${BASE_URL}/patient/appointments?error=payment_failed&reason=${error ? 'user_cancelled' : 'missing_reference'}${paymentReference ? `&reference=${paymentReference}` : ''}`
     )
   }
 
   try {
     // Verify payment with Paystack
-    const payment = await verifyPayment(reference)
+    const payment = await verifyPayment(paymentReference)
 
     if (payment.data.status !== 'success') {
       return NextResponse.redirect(
-        new URL('/patient/appointments?error=payment_failed', request.url)
+        `${BASE_URL}/patient/appointments?error=payment_failed&reference=${paymentReference}`
       )
     }
 
@@ -46,13 +75,13 @@ export async function GET(request: Request) {
     const { data: appointment, error: appointmentError } = await supabase
       .from('appointments')
       .select('id, doctor_id, patient_id, scheduled_at, chief_complaint, symptoms_description, amount, payment_status, status')
-      .eq('paystack_reference', reference)
+      .eq('paystack_reference', paymentReference)
       .single()
 
     if (appointmentError || !appointment) {
-      console.error('Appointment not found for reference:', reference)
+      console.error('Appointment not found for reference:', paymentReference, appointmentError)
       return NextResponse.redirect(
-        new URL('/patient/appointments?error=appointment_not_found', request.url)
+        `${BASE_URL}/patient/appointments?error=appointment_not_found&reference=${paymentReference}`
       )
     }
 
@@ -60,7 +89,7 @@ export async function GET(request: Request) {
     if (appointment.payment_status === 'paid' && appointment.status === 'confirmed') {
       console.log(`✅ Appointment ${appointment.id} already confirmed, redirecting to success`)
       return NextResponse.redirect(
-        new URL(`/patient/appointments?success=payment_complete&appointment_id=${appointment.id}`, request.url)
+        `${BASE_URL}/patient/appointments?success=payment_complete&appointment_id=${appointment.id}&reference=${paymentReference}`
       )
     }
 
@@ -71,7 +100,7 @@ export async function GET(request: Request) {
     if (paymentAmount !== appointmentAmount) {
       console.error(`❌ Payment amount mismatch: expected ${appointmentAmount}, got ${paymentAmount}`)
       return NextResponse.redirect(
-        new URL('/patient/appointments?error=payment_amount_mismatch', request.url)
+        `${BASE_URL}/patient/appointments?error=payment_amount_mismatch&appointment_id=${appointment.id}&reference=${paymentReference}`
       )
     }
 
@@ -87,7 +116,7 @@ export async function GET(request: Request) {
     if (updateError) {
       console.error('Error updating appointment:', updateError)
       return NextResponse.redirect(
-        new URL('/patient/appointments?error=update_failed', request.url)
+        `${BASE_URL}/patient/appointments?error=update_failed&appointment_id=${appointment.id}&reference=${paymentReference}`
       )
     }
 
@@ -174,12 +203,12 @@ export async function GET(request: Request) {
 
     // Success - redirect with success message
     return NextResponse.redirect(
-      new URL(`/patient/appointments?success=payment_complete&appointment_id=${appointment.id}`, request.url)
+      `${BASE_URL}/patient/appointments?success=payment_complete&appointment_id=${appointment.id}&reference=${paymentReference}`
     )
   } catch (error) {
     console.error('Payment verification error:', error)
     return NextResponse.redirect(
-      new URL('/patient/appointments?error=verification_failed', request.url)
+      `${BASE_URL}/patient/appointments?error=verification_failed&reference=${paymentReference || 'unknown'}`
     )
   }
 }

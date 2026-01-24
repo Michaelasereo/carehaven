@@ -24,41 +24,17 @@ export function Header() {
   const [isLoading, setIsLoading] = useState(true)
 
   // Fetch user and profile data
+  // Trust the /api/profile endpoint completely - it uses server-side authentication (same as dashboard pages)
   const fetchUserAndProfile = useCallback(async () => {
     setIsLoading(true)
     try {
-      // Get current user - this validates against the server
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      
-      if (userError) {
-        console.error('[Header] Error fetching user:', userError)
-        setUser(null)
-        setProfile(null)
-        setIsLoading(false)
-        return
-      }
-
-      if (!user) {
-        // No user authenticated - clear all data
-        console.log('[Header] No authenticated user found')
-        setUser(null)
-        setProfile(null)
-        setIsLoading(false)
-        return
-      }
-
-      // Log the user ID for debugging
-      console.log('[Header] Fetching profile for user:', user.id, 'email:', user.email)
-
-      // Update user state first
-      setUser(user)
-
-      // Fetch profile from server-side API route (uses cookie-based auth, same as dashboard)
+      // Fetch profile from server-side API route (uses cookie-based auth, same as dashboard pages)
       let profileResponse: Response
       try {
         profileResponse = await fetch('/api/profile')
       } catch (fetchError) {
         console.error('[Header] Fetch error:', fetchError)
+        setUser(null)
         setProfile(null)
         setIsLoading(false)
         return
@@ -81,8 +57,8 @@ export function Header() {
         console.error('[Header] Error fetching profile from API:', {
           status: profileResponse.status,
           error: errorData.error || 'Unknown error',
-          userId: user.id,
         })
+        setUser(null)
         setProfile(null)
         setIsLoading(false)
         return
@@ -93,35 +69,46 @@ export function Header() {
         profileData = await profileResponse.json()
       } catch (jsonError) {
         console.error('[Header] JSON parse error:', jsonError)
+        setUser(null)
         setProfile(null)
         setIsLoading(false)
         return
       }
 
       if (profileData) {
-        // Verify profile matches the authenticated user
-        if (profileData.id !== user.id) {
-          console.error('[Header] Profile ID mismatch!', {
-            profileId: profileData.id,
-            userId: user.id,
+        // The API route already ensures the profile matches the authenticated user
+        // via server-side authentication, so we can trust the profile data
+        // Only verify that profileData has an id field
+        if (!profileData.id) {
+          console.error('[Header] Profile data missing id field:', {
+            profileDataKeys: Object.keys(profileData),
+            profileDataSample: JSON.stringify(profileData).substring(0, 200),
           })
+          setUser(null)
           setProfile(null)
           setIsLoading(false)
           return
         }
 
+        // Use profile ID as user ID (they're the same in Supabase - profiles.id references auth.users.id)
+        // This ensures we always use the server-authenticated user, not stale client-side data
+        setUser({ 
+          id: profileData.id, 
+          email: profileData.email || null 
+        })
+        setProfile(profileData)
+
         console.log('[Header] Profile loaded:', {
           id: profileData.id,
           name: profileData.full_name,
           role: profileData.role,
+          email: profileData.email,
           avatarUrl: profileData.avatar_url ? 'present' : 'missing',
-          avatarUrlValue: profileData.avatar_url || 'null/undefined',
         })
-        
-        setProfile(profileData)
       } else {
         // No profile data found
-        console.warn('[Header] No profile data found for user:', user.id)
+        console.warn('[Header] No profile data found')
+        setUser(null)
         setProfile(null)
       }
     } catch (error) {
@@ -131,7 +118,7 @@ export function Header() {
     } finally {
       setIsLoading(false)
     }
-  }, [supabase])
+  }, [])
 
   // Initial fetch and auth state change listener
   useEffect(() => {
@@ -320,7 +307,7 @@ export function Header() {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <span className="text-base md:text-lg font-medium text-gray-900">{isLoading ? 'Loading...' : displayName}</span>
+        <span className="text-xs md:text-sm font-medium text-gray-600">{isLoading ? 'Loading...' : `Welcome, ${displayName}`}</span>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">

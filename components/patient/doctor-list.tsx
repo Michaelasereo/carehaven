@@ -4,8 +4,18 @@ import { useQuery } from '@tanstack/react-query'
 import { DoctorCard } from './doctor-card'
 import { Loader2 } from 'lucide-react'
 
-export function DoctorList({ onSelectDoctor }: { onSelectDoctor?: (doctorId: string) => void }) {
-  const { data: doctors, isLoading, error } = useQuery({
+type Doctor = {
+  id: string
+  full_name: string | null
+  specialty: string | null
+  bio: string | null
+  consultation_fee: number | null
+  avatar_url: string | null
+  years_experience: number | string | null
+}
+
+export function DoctorList({ onSelectDoctor }: { onSelectDoctor?: (doctor: Doctor) => void }) {
+  const { data: doctors, isLoading, error } = useQuery<Doctor[]>({
     queryKey: ['doctors'],
     queryFn: async () => {
       const res = await fetch('/api/doctors')
@@ -13,7 +23,7 @@ export function DoctorList({ onSelectDoctor }: { onSelectDoctor?: (doctorId: str
         const body = await res.json().catch(() => ({}))
         throw new Error((body as { error?: string })?.error || 'Failed to load doctors')
       }
-      return (await res.json()) as unknown[]
+      return (await res.json()) as Doctor[]
     },
   })
 
@@ -47,7 +57,7 @@ export function DoctorList({ onSelectDoctor }: { onSelectDoctor?: (doctorId: str
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {doctors.map((doctor: { id: string }) => (
+      {doctors.map((doctor) => (
         <DoctorCard
           key={doctor.id}
           doctor={doctor}

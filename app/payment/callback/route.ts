@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { verifyPayment } from '@/lib/paystack/client'
 import { createRoom } from '@/lib/daily/client'
 import { getConsultationDuration } from '@/lib/admin/system-settings'
-import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail, formatDoctorName } from '@/lib/notifications/triggers'
+import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, notifyAdmins, sendDoctorAppointmentEmail, formatDoctorName } from '@/lib/notifications/triggers'
 
 /**
  * Get the correct base URL for redirects
@@ -178,6 +178,13 @@ export async function GET(request: Request) {
         appointment.id,
         patient?.full_name || 'Patient',
         new Date(appointment.scheduled_at)
+      )
+
+      await notifyAdmins(
+        'system',
+        'New appointment booked',
+        `A new appointment has been booked (${patient?.full_name || 'Patient'} with doctor).`,
+        { appointment_id: appointment.id }
       )
 
       // Send detailed email to doctor

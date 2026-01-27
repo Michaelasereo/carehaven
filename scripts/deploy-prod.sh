@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Netlify Production Deployment Script
-# Standard deployment script for production environment
-# Usage: ./scripts/deploy-prod.sh or npm run deploy:prod:standard
+# Standard deployment script for production environment (with retry logic)
+# Usage: ./scripts/deploy-prod.sh or npm run deploy:prod:manual
 
 set -e  # Exit on error
 
@@ -148,8 +148,17 @@ log_step "Step 7: Deploying to Production"
 
 log_info "Starting production deployment to Netlify..."
 log_info "This may take several minutes..."
+log_info "Using retry logic: NETLIFY_RETRY_COUNT=5, NETLIFY_RETRY_TIMEOUT=300000"
 
-# Deploy with standard settings
+# Standard retry logic (matches netlify.toml build.environment)
+export NETLIFY_RETRY_COUNT=5
+export NETLIFY_RETRY_TIMEOUT=300000
+export NETLIFY_CDN_UPLOAD_CONCURRENCY=3
+export NETLIFY_CDN_UPLOAD_TIMEOUT=600
+export NETLIFY_SDK_METADATA_URL=""
+export NODE_OPTIONS="--max-http-header-size=16384"
+
+# Deploy with standard settings and retry
 DEPLOY_OUTPUT=$($NETLIFY_CMD deploy --prod --timeout=600 2>&1)
 DEPLOY_STATUS=$?
 

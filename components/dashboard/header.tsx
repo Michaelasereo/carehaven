@@ -357,7 +357,7 @@ export function Header() {
             <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <NotificationBell userId={user?.id} />
+        <NotificationBell userId={user?.id} userRole={profile?.role} />
       </div>
     </header>
   )

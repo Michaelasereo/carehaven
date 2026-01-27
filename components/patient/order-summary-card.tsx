@@ -12,6 +12,8 @@ interface OrderSummaryCardProps {
   time?: string | null
   consultationFee: number
   currency?: string
+  /** Consultation duration in minutes. Shown in summary (e.g. "45 min consultation"). Default 45. */
+  durationMinutes?: number
   className?: string
 }
 
@@ -22,6 +24,7 @@ export function OrderSummaryCard({
   time,
   consultationFee,
   currency = 'NGN',
+  durationMinutes = 45,
   className,
 }: OrderSummaryCardProps) {
   const formatDateTime = () => {
@@ -35,6 +38,17 @@ export function OrderSummaryCard({
       }
     }
     return date
+  }
+
+  const endTimeLabel = (): string | null => {
+    if (!date || !time) return null
+    try {
+      const start = new Date(`${date}T${time}`)
+      const end = new Date(start.getTime() + durationMinutes * 60 * 1000)
+      return format(end, 'h:mm a')
+    } catch {
+      return null
+    }
   }
 
   return (
@@ -63,6 +77,12 @@ export function OrderSummaryCard({
           <div className="flex-1">
             <p className="text-sm text-gray-600">Appointment Date & Time</p>
             <p className="font-medium text-gray-900">{formatDateTime()}</p>
+            {date && time && (
+              <p className="text-sm text-gray-500 mt-0.5">
+                {durationMinutes} min consultation
+                {endTimeLabel() ? ` • Ends ${endTimeLabel()}` : ''}
+              </p>
+            )}
           </div>
         </div>
 

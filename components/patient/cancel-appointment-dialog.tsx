@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 
 interface CancelAppointmentDialogProps {
@@ -25,52 +24,31 @@ export function CancelAppointmentDialog({
   onSuccess,
 }: CancelAppointmentDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
   const { addToast } = useToast()
 
   const handleCancel = async () => {
     setIsLoading(true)
     try {
-      const { error } = await supabase
-        .from('appointments')
-        .update({ status: 'cancelled' })
-        .eq('id', appointment.id)
+      const res = await fetch('/api/appointments/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId: appointment.id }),
+      })
 
-      if (error) throw error
+      const data = await res.json().catch(() => ({}))
 
-      // Create notifications for both patient and doctor
-      try {
-        // Notify patient
-        await fetch('/api/notifications/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: appointment.patient_id,
-            type: 'appointment',
-            title: 'Appointment Cancelled',
-            body: 'Your appointment has been cancelled',
-            data: { appointment_id: appointment.id },
-          }),
-        })
-        
-        // Notify doctor
-        if (appointment.doctor_id) {
-          await fetch('/api/notifications/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: appointment.doctor_id,
-              type: 'appointment',
-              title: 'Appointment Cancelled',
-              body: 'A patient has cancelled their appointment',
-              data: { appointment_id: appointment.id },
-            }),
-          })
-        }
-      } catch (notifError) {
-        console.error('Error creating notification:', notifError)
+      if (!res.ok) {
+        throw new Error(data?.error ?? 'Failed to cancel')
       }
 
+      const refund = !!data?.refund
+      addToast({
+        variant: 'success',
+        title: 'Appointment Cancelled',
+        description: refund
+          ? "You'll receive a refund for this appointment."
+          : 'This appointment was not eligible for a refund.',
+      })
       onSuccess()
       onClose()
     } catch (error) {
@@ -78,7 +56,8 @@ export function CancelAppointmentDialog({
       addToast({
         variant: 'destructive',
         title: 'Cancellation Failed',
-        description: 'Failed to cancel appointment. Please try again.',
+        description:
+          error instanceof Error ? error.message : 'Failed to cancel appointment. Please try again.',
       })
     } finally {
       setIsLoading(false)
@@ -90,8 +69,14 @@ export function CancelAppointmentDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Cancel Appointment</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to cancel this appointment? This action cannot be undone.
+          <DialogDescription className="space-y-2">
+            <span className="block">
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </span>
+            <span className="block text-sm text-gray-600">
+              If you cancel at least 12 hours before your session, you&apos;ll receive a refund.
+              Otherwise the payment is not refunded.
+            </span>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

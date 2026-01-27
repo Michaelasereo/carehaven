@@ -210,6 +210,17 @@ Empower healthcare delivery through technology by connecting patients with trust
   - Historical records access
 - **Dependencies:** Consultation notes, Prescriptions, Investigations tables
 
+#### FR-2.5: Cancellation & refunds
+- **Priority:** P0
+- **Description:** Patient-initiated cancellation with refund policy
+- **Policy:** Cancel ≥12 hours before session → Paystack reversal (refund). Cancel <12 hours before → no refund.
+- **Requirements:**
+  - Cancel appointment (patient only) via `POST /api/appointments/cancel`
+  - Refund via Paystack when eligible; otherwise status update only
+  - Notify patient and doctor
+  - Clear UI copy (12h policy, outcome message)
+- **Dependencies:** Paystack refund API, Notifications
+
 ---
 
 ### FR-3: Doctor Features
@@ -616,7 +627,7 @@ Empower healthcare delivery through technology by connecting patients with trust
   - Payment initialization
   - Payment verification
   - Webhook handling for payment callbacks
-  - Support for refunds (future)
+  - Refunds via Paystack API (cancellation ≥12h before session)
 - **Credentials:** Paystack secret key stored securely
 
 ### Brevo Integration

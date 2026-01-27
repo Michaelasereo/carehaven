@@ -6,6 +6,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import {
+  logProfileUpdateError,
+  getProfileUpdateErrorMessage,
+  sanitizeGender,
+  sanitizeAge,
+} from '@/lib/utils/profile-update-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -53,27 +59,41 @@ export function CompleteProfileForm() {
         return
       }
 
+      const gender = sanitizeGender(data.gender)
+      const age = sanitizeAge(data.age)
+      // Omit age from main update to avoid "age column not in schema cache" 400.
+      const mainPayload = {
+        full_name: data.full_name,
+        phone: data.phone || null,
+        gender,
+        profile_completed: true,
+        onboarded_at: new Date().toISOString(),
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: data.full_name,
-          phone: data.phone,
-          age: data.age ? parseInt(data.age, 10) : null,
-          gender: data.gender,
-          profile_completed: true,
-          onboarded_at: new Date().toISOString(),
-        })
+        .update(mainPayload)
         .eq('id', user.id)
 
       if (error) {
-        console.error('Error updating profile:', error)
+        logProfileUpdateError('complete-profile update', error)
         addToast({
           variant: 'destructive',
           title: 'Update Failed',
-          description: 'Failed to update profile. Please try again.',
+          description: getProfileUpdateErrorMessage(error),
         })
         setIsLoading(false)
         return
+      }
+
+      if (age != null) {
+        const { error: ageErr } = await supabase
+          .from('profiles')
+          .update({ age })
+          .eq('id', user.id)
+        if (ageErr) {
+          console.warn('[Complete profile] Age update skipped (schema cache?):', ageErr.message)
+        }
       }
 
       // Get user role and redirect
@@ -88,8 +108,12 @@ export function CompleteProfileForm() {
       // Use full page navigation to ensure proper session handling and middleware checks
       window.location.href = redirectPath
     } catch (error) {
-      console.error('Error:', error)
-      alert('An error occurred. Please try again.')
+      logProfileUpdateError('complete-profile (catch)', error)
+      addToast({
+        variant: 'destructive',
+        title: 'Error',
+        description: getProfileUpdateErrorMessage(error),
+      })
     } finally {
       setIsLoading(false)
     }

@@ -32,6 +32,7 @@ export function DoctorDashboardClient({
         .from('appointments')
         .select('*, profiles!appointments_patient_id_fkey(full_name)')
         .eq('doctor_id', doctorId)
+        .in('payment_status', ['paid', 'waived'])
         .in('status', ['scheduled', 'confirmed', 'in_progress'])
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
@@ -147,7 +148,8 @@ export function DoctorDashboardClient({
           {upcomingAppointments.length > 0 ? (
             upcomingAppointments.map((apt) => {
               const scheduledAt = new Date(apt.scheduled_at)
-              const canJoin = apt.status === 'confirmed' || apt.status === 'in_progress'
+              const paymentLabel = apt.payment_status === 'waived' ? 'Waived' : 'Paid'
+              const showJoin = ['scheduled', 'confirmed', 'in_progress'].includes(apt.status)
               
               return (
                 <div
@@ -161,11 +163,16 @@ export function DoctorDashboardClient({
                       <span>{format(scheduledAt, 'MMM d, h:mm a')}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
                     <Badge variant={apt.status === 'confirmed' || apt.status === 'in_progress' ? 'default' : 'secondary'} className="text-xs">
                       {apt.status}
                     </Badge>
-                    {canJoin && (
+                    {['scheduled', 'confirmed', 'in_progress'].includes(apt.status) && (
+                      <Badge variant="default" className="text-xs">
+                        {paymentLabel}
+                      </Badge>
+                    )}
+                    {showJoin && (
                       <div className="flex items-center gap-2">
                         <JoinConsultationButton appointmentId={apt.id} />
                         <Link href={`/doctor/appointments/${apt.id}`}>

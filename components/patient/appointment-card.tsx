@@ -31,8 +31,9 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
                         new Date(appointment.scheduled_at) > new Date()
   const canCancel = ['scheduled', 'confirmed'].includes(appointment.status) && 
                     new Date(appointment.scheduled_at) > new Date()
-  const canJoin = (appointment.status === 'confirmed' || appointment.status === 'in_progress') &&
-                  appointment.payment_status === 'paid'
+  const isUpcoming = new Date(appointment.scheduled_at) > new Date()
+  const showJoin = ['scheduled', 'confirmed', 'in_progress'].includes(appointment.status) && isUpcoming
+  const paymentLabel = appointment.payment_status === 'waived' ? 'Waived' : 'Paid'
 
   return (
     <>
@@ -41,9 +42,14 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h3 className="font-semibold text-sm md:text-base text-gray-900 truncate">Consultation with {doctorName}</h3>
-              <Badge variant={appointment.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs whitespace-nowrap">
+              <Badge variant={appointment.status === 'confirmed' || appointment.status === 'in_progress' ? 'default' : 'secondary'} className="text-xs whitespace-nowrap">
                 {appointment.status}
               </Badge>
+              {['scheduled', 'confirmed', 'in_progress'].includes(appointment.status) && (
+                <Badge variant="default" className="text-xs whitespace-nowrap">
+                  {paymentLabel}
+                </Badge>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-gray-600 mt-1">
               <div className="flex items-center gap-1">
@@ -61,7 +67,7 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
           </div>
           {showActions && (
             <div className="flex flex-col gap-2 ml-2 md:ml-4 flex-shrink-0">
-              {canJoin && (
+              {showJoin && (
                 <JoinConsultationButton appointmentId={appointment.id} />
               )}
               {canReschedule && (

@@ -36,6 +36,7 @@ export default async function PatientDashboardPage() {
       .from('appointments')
       .select('*, profiles!appointments_doctor_id_fkey(*)')
       .eq('patient_id', user.id)
+      .in('payment_status', ['paid', 'waived'])
       .order('scheduled_at', { ascending: true })
       .limit(3),
     supabase
@@ -47,6 +48,7 @@ export default async function PatientDashboardPage() {
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('patient_id', user.id)
+      .in('payment_status', ['paid', 'waived'])
       .in('status', ['scheduled', 'confirmed']),
     supabase
       .from('investigations')

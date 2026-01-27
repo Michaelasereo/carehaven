@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ToastProvider } from '@/components/ui/toast'
 
 // Create a test query client
 const createTestQueryClient = () =>
@@ -26,6 +27,24 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    )
+  }
+
+  return render(ui, { wrapper: Wrapper, ...options })
+}
+
+// Render with QueryClient + ToastProvider (for components that use useToast or need toast context)
+export function renderWithAppProviders(
+  ui: ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
+) {
+  const queryClient = createTestQueryClient()
+
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>{children}</ToastProvider>
+      </QueryClientProvider>
     )
   }
 

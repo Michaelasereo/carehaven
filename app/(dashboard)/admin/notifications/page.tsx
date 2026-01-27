@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNotifications } from '@/lib/react-query/queries'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,12 +11,12 @@ import { Bell, Check, CheckCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 
-export default function DoctorNotificationsPage() {
+export default function AdminNotificationsPage() {
   const router = useRouter()
   const supabase = createClient()
+  const queryClient = useQueryClient()
   const [userId, setUserId] = useState<string | undefined>()
 
-  // Get user ID
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -34,6 +35,7 @@ export default function DoctorNotificationsPage() {
       .from('notifications')
       .update({ read: true, read_at: new Date().toISOString() })
       .eq('id', id)
+    queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
   }
 
   const handleMarkAllAsRead = async () => {
@@ -45,18 +47,17 @@ export default function DoctorNotificationsPage() {
       .from('notifications')
       .update({ read: true, read_at: new Date().toISOString() })
       .in('id', unreadIds)
+    queryClient.invalidateQueries({ queryKey: ['notifications', userId] })
   }
 
   const handleNotificationClick = (notification: any) => {
     handleMarkAsRead(notification.id)
 
-    if (notification.data) {
-      const aptId = notification.data.appointment_id ?? notification.data.appointmentId
-      if (notification.type === 'appointment' && aptId) {
-        router.push(`/doctor/appointments/${aptId}`)
-      } else if (notification.type === 'investigation' && notification.data.investigationId) {
-        router.push(`/doctor/investigations`)
-      }
+    const aptId = notification.data?.appointment_id ?? notification.data?.appointmentId
+    if ((notification.type === 'appointment' || notification.type === 'system') && aptId) {
+      router.push(`/admin/appointments/${aptId}`)
+    } else {
+      router.push('/admin/dashboard')
     }
   }
 
@@ -95,7 +96,7 @@ export default function DoctorNotificationsPage() {
           <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No notifications</h3>
           <p className="text-gray-600">
-            You'll see appointment updates, patient messages, and other important updates here.
+            You&apos;ll see platform updates such as new appointments and cancellations here.
           </p>
         </Card>
       ) : (

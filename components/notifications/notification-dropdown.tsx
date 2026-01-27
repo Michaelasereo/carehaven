@@ -24,6 +24,7 @@ interface NotificationDropdownProps {
   onMarkAllAsRead?: () => void
   isLoading?: boolean
   className?: string
+  userRole?: string
 }
 
 const notificationIcons = {
@@ -40,19 +41,42 @@ export function NotificationDropdown({
   onMarkAllAsRead,
   isLoading = false,
   className,
+  userRole,
 }: NotificationDropdownProps) {
   const unreadCount = notifications.filter((n) => !n.read).length
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin'
+  const isDoctor = userRole === 'doctor'
 
-  // Debug: Log notifications when dropdown renders
-  React.useEffect(() => {
-    console.log('[NotificationDropdown] Rendering with notifications:', notifications.length)
-  }, [notifications])
+  const viewAllHref = isAdmin
+    ? '/admin/notifications'
+    : isDoctor
+      ? '/doctor/notifications'
+      : '/patient/notifications'
 
   const getNotificationLink = (notification: Notification): string => {
     const { type, data } = notification
+    const aptId = data?.appointment_id ?? data?.appointmentId
+
+    if (isAdmin) {
+      if ((type === 'appointment' || type === 'system') && aptId) {
+        return `/admin/appointments/${aptId}`
+      }
+      return '/admin/notifications'
+    }
+
+    if (isDoctor) {
+      if (type === 'appointment' && aptId) {
+        return `/doctor/appointments/${aptId}`
+      }
+      if (type === 'investigation' && (data?.investigation_id ?? data?.investigationId)) {
+        return '/doctor/investigations'
+      }
+      return '/doctor/notifications'
+    }
+
     switch (type) {
       case 'appointment':
-        return `/patient/appointments${data?.appointment_id ? `/${data.appointment_id}` : ''}`
+        return `/patient/appointments${aptId ? `/${aptId}` : ''}`
       case 'prescription':
         return `/patient/prescriptions${data?.prescription_id ? `/${data.prescription_id}` : ''}`
       case 'investigation':
@@ -165,7 +189,7 @@ export function NotificationDropdown({
         {notifications.length > 0 && (
           <div className="p-4 border-t border-gray-200">
             <Link
-              href="/patient/notifications"
+              href={viewAllHref}
               className="block text-center text-sm font-medium text-teal-600 hover:text-teal-700"
             >
               View all notifications

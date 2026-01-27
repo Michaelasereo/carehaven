@@ -19,6 +19,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Camera, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import {
+  logProfileUpdateError,
+  getProfileUpdateErrorMessage,
+  sanitizeGender,
+} from '@/lib/utils/profile-update-error'
 import Link from 'next/link'
 
 const enrollmentSchema = z.object({
@@ -313,7 +318,7 @@ export function DoctorEnrollmentForm() {
         // Doctors are automatically verified on enrollment
         const profileUpdateData: any = {
           full_name: `${data.firstName} ${data.lastName}`,
-          gender: data.gender,
+          gender: sanitizeGender(data.gender),
           specialty: data.specialty,
           license_number: `${data.licenseType}-${Date.now()}`, // Generate temporary license number
           license_verified: true, // Auto-verify doctors on enrollment
@@ -344,8 +349,8 @@ export function DoctorEnrollmentForm() {
           )
 
         if (profileError) {
-          console.error('Error updating profile:', profileError)
-          setError('Failed to update profile. Please try again.')
+          logProfileUpdateError('enrollment profile upsert', profileError)
+          setError(getProfileUpdateErrorMessage(profileError))
           setLoading(false)
           return
         }

@@ -48,6 +48,10 @@ npm run deploy:netlify:direct
 
 # Optimized deployment (with retry logic)
 npm run deploy:netlify:optimized
+
+# No-plugins fallback (if "fetch failed" / "Failed retrieving extensions"; see Troubleshooting)
+npm run deploy:netlify:no-plugins
+# Or with retry: npm run deploy:prod:no-plugins
 ```
 
 ## Troubleshooting
@@ -58,10 +62,52 @@ If deployment fails:
 2. **Build timeout**: Increase timeout in `netlify.toml` if needed (currently 600 seconds)
 3. **Missing files**: Ensure `.next` directory exists after build - don't use `build:netlify` which removes files the plugin needs
 4. **404 errors**: If you see 404s, the Next.js plugin might not be enabled - check `netlify.toml`
+5. **"fetch failed" / "other side closed" / "Failed retrieving extensions for site"**: Often caused by local network, firewall, or VPN. Try the **no-plugins fallback** (see below). Use only as a temporary workaround; properly fix by resolving network/firewall/VPN issues so standard deploy (with plugin) works.
 
-## Manual Deployment Steps
+### No-plugins fallback
 
-If you need to deploy manually:
+When deploy fails with "fetch failed", "other side closed", or "Failed retrieving extensions for site" (typically due to local network/firewall), you can bypass the failing extension fetch by disabling plugins:
+
+```bash
+npm run deploy:netlify:no-plugins
+```
+
+Or, for manual prod with retry logic:
+
+```bash
+npm run deploy:prod:no-plugins
+```
+
+**Caveat:** With plugins disabled, the **Next.js plugin** does not run. Netlify still runs `npm run build` and deploys the publish dir (e.g. `.next` from UI), but without the plugin's SSR/routing setup. The site may 404 on client routes, miss SSR, or otherwise behave incorrectly. Use only as a **temporary** workaround.
+
+**Proper fix:** Resolve network/firewall/VPN issues so standard deploy (with plugin) works.
+
+## Manual Production Deploy (Standard Script + Retry)
+
+For manual production deploys, use the standard script with retry logic:
+
+```bash
+npm run deploy:prod:manual
+```
+
+Or run the script directly:
+
+```bash
+./scripts/deploy-prod.sh
+```
+
+This script:
+
+- Runs prerequisites (Netlify auth, Node/npm, env vars check)
+- Cleans previous build, installs deps (`npm ci`), generates Prisma client
+- Builds the project (`npm run build`)
+- Deploys to production with **retry logic**: `NETLIFY_RETRY_COUNT=5`, `NETLIFY_RETRY_TIMEOUT=300000`, plus CDN upload settings aligned with `netlify.toml`
+
+Retry and CDN settings match `netlify.toml` to reduce blob upload and transient failures.
+
+## Manual Deployment Steps (raw CLI)
+
+If you need to deploy manually without the script:
 
 ```bash
 # 1. Build the project (use standard build, not build:netlify)

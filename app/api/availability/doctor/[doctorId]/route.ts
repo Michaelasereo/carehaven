@@ -18,12 +18,16 @@ export async function GET(
     const { doctorId } = await params
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
+    const exclude = searchParams.get('exclude') ?? undefined
 
     if (!doctorId || !UUID_REGEX.test(doctorId)) {
       return NextResponse.json({ error: 'Invalid doctorId' }, { status: 400 })
     }
     if (!date || !DATE_REGEX.test(date)) {
       return NextResponse.json({ error: 'Invalid or missing date (use YYYY-MM-DD)' }, { status: 400 })
+    }
+    if (exclude !== undefined && !UUID_REGEX.test(exclude)) {
+      return NextResponse.json({ error: 'Invalid exclude (use appointment UUID)' }, { status: 400 })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -39,20 +43,26 @@ export async function GET(
     const startOfDay = new Date(`${date}T00:00:00`)
     const endOfDay = new Date(`${date}T23:59:59`)
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('appointments')
-      .select('scheduled_at, duration_minutes')
+      .select('id, scheduled_at, duration_minutes')
       .eq('doctor_id', doctorId)
       .gte('scheduled_at', startOfDay.toISOString())
       .lte('scheduled_at', endOfDay.toISOString())
       .in('status', ['scheduled', 'confirmed', 'in_progress'])
+
+    if (exclude) {
+      query = query.neq('id', exclude)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('[availability/doctor]', error)
       return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 })
     }
 
-    const slots = (data || []).map((r) => ({
+    const slots = (data || []).map((r: { scheduled_at: string; duration_minutes?: number }) => ({
       scheduled_at: r.scheduled_at,
       duration_minutes: r.duration_minutes ?? 45,
     }))

@@ -21,6 +21,11 @@ jest.mock('@/lib/utils/timezone', () => ({
   isWithinJoinWindow: jest.fn(() => true),
 }))
 
+const mockAddToast = jest.fn()
+jest.mock('@/components/ui/toast', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}))
+
 // Mock fetch
 global.fetch = jest.fn()
 
@@ -28,6 +33,7 @@ describe('JoinConsultationButton', () => {
   const mockFrom = jest.fn()
   const mockSelect = jest.fn()
   const mockEq = jest.fn()
+  const mockEqUpdate = jest.fn()
   const mockSingle = jest.fn()
   const mockUpdate = jest.fn()
   const mockChannel = {
@@ -55,14 +61,15 @@ describe('JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date(Date.now() + 3600000).toISOString(),
         status: 'confirmed',
+        payment_status: 'paid',
       },
       error: null,
     })
 
     mockUpdate.mockReturnValue({
-      eq: mockEq,
+      eq: mockEqUpdate,
     })
-    mockEq.mockResolvedValue({ error: null })
+    mockEqUpdate.mockResolvedValue({ error: null })
 
     mockFrom.mockReturnValue({
       select: mockSelect,
@@ -92,6 +99,7 @@ describe('JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date(Date.now() + 3600000).toISOString(),
         status: 'confirmed',
+        payment_status: 'paid',
         daily_room_name: null,
       },
       error: null,
@@ -124,6 +132,7 @@ describe('JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date(Date.now() + 3600000).toISOString(),
         status: 'confirmed',
+        payment_status: 'paid',
         daily_room_name: 'existing-room',
         daily_room_url: 'https://test.daily.co/existing-room',
       },
@@ -156,6 +165,7 @@ describe('JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date(Date.now() + 3600000).toISOString(),
         status: 'confirmed',
+        payment_status: 'paid',
         daily_room_name: 'existing-room',
         daily_room_url: 'https://test.daily.co/existing-room',
       },
@@ -185,6 +195,7 @@ describe('JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date(Date.now() + 3600000).toISOString(),
         status: 'confirmed',
+        payment_status: 'paid',
         daily_room_name: null,
       },
       error: null,
@@ -211,8 +222,16 @@ describe('JoinConsultationButton', () => {
 
   it('handles errors', async () => {
     const user = userEvent.setup()
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {})
-    mockSingle.mockRejectedValueOnce(new Error('Failed to fetch'))
+    mockSingle
+      .mockResolvedValueOnce({
+        data: {
+          scheduled_at: new Date(Date.now() + 3600000).toISOString(),
+          status: 'confirmed',
+          payment_status: 'paid',
+        },
+        error: null,
+      })
+      .mockRejectedValueOnce(new Error('Failed to fetch'))
 
     render(<JoinConsultationButton appointmentId="test-appointment-id" />)
 
@@ -225,9 +244,13 @@ describe('JoinConsultationButton', () => {
     await user.click(joinButton)
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalled()
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'destructive',
+          title: expect.any(String),
+          description: expect.any(String),
+        })
+      )
     })
-
-    alertSpy.mockRestore()
   })
 })

@@ -21,6 +21,11 @@ jest.mock('@/lib/utils/timezone', () => ({
   isWithinJoinWindow: jest.fn(() => true),
 }))
 
+const mockAddToast = jest.fn()
+jest.mock('@/components/ui/toast', () => ({
+  useToast: () => ({ addToast: mockAddToast }),
+}))
+
 // Mock fetch
 global.fetch = jest.fn()
 
@@ -28,6 +33,7 @@ describe('Doctor JoinConsultationButton', () => {
   const mockFrom = jest.fn()
   const mockSelect = jest.fn()
   const mockEq = jest.fn()
+  const mockEqUpdate = jest.fn()
   const mockSingle = jest.fn()
   const mockUpdate = jest.fn()
   const mockChannel = {
@@ -55,14 +61,15 @@ describe('Doctor JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date(Date.now() + 3600000).toISOString(),
         status: 'confirmed',
+        payment_status: 'paid',
       },
       error: null,
     })
 
     mockUpdate.mockReturnValue({
-      eq: mockEq,
+      eq: mockEqUpdate,
     })
-    mockEq.mockResolvedValue({ error: null })
+    mockEqUpdate.mockResolvedValue({ error: null })
 
     mockFrom.mockReturnValue({
       select: mockSelect,
@@ -98,6 +105,7 @@ describe('Doctor JoinConsultationButton', () => {
       data: {
         scheduled_at: new Date().toISOString(),
         status: 'in_progress',
+        payment_status: 'paid',
         daily_room_name: 'existing-room',
         daily_room_url: 'https://test.daily.co/existing-room',
       },

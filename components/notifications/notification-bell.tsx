@@ -12,9 +12,10 @@ import { useQueryClient } from '@tanstack/react-query'
 
 interface NotificationBellProps {
   userId?: string
+  userRole?: string
 }
 
-export function NotificationBell({ userId: propUserId }: NotificationBellProps) {
+export function NotificationBell({ userId: propUserId, userRole }: NotificationBellProps) {
   const supabase = createClient()
   const queryClient = useQueryClient()
   const [userId, setUserId] = useState<string | undefined>(propUserId)
@@ -110,6 +111,7 @@ export function NotificationBell({ userId: propUserId }: NotificationBellProps) 
             onMarkAsRead={handleMarkAsRead}
             onMarkAllAsRead={handleMarkAllAsRead}
             isLoading={isLoading}
+            userRole={userRole}
           />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>

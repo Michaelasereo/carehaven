@@ -245,6 +245,11 @@ PAYSTACK_SECRET_KEY=sk_live_xxxxx  # or sk_test_xxxxx for testing
 NEXT_PUBLIC_APP_URL=https://carehaven.app  # Used for callback URL
 ```
 
+**Callback & webhook URLs (per environment):**
+- **Callback (redirect):** `{NEXT_PUBLIC_APP_URL}/payment/callback` — Paystack redirects users here after payment. Must be reachable (not localhost for production).
+- **Webhook:** `{NEXT_PUBLIC_APP_URL}/api/payments/webhook` — Configure in Paystack Dashboard. Must be a public HTTPS URL. Webhook is the authoritative verification source; callback improves UX with immediate redirect.
+- **Troubleshooting:** If payments stay "pending", verify (1) callback URL is correct in Paystack & env, (2) webhook URL is set and reachable, (3) webhook signature verification passes (check logs).
+
 ---
 
 ## Redirect Flow Details
@@ -270,15 +275,41 @@ To debug the redirect issue:
 
 ---
 
+## Refund Flow (Cancellation)
+
+**Endpoint:** `POST /api/appointments/cancel`  
+**Body:** `{ "appointmentId": "<uuid>" }`  
+**Auth:** Patient only (must own the appointment).
+
+**Logic:**
+1. If cancelled **≥12 hours before** session and `payment_status === 'paid'` and `paystack_reference` exists → call Paystack refund API (`lib/paystack/client.ts` → `refundTransaction`), then set `status: 'cancelled'` and `payment_status: 'refunded'`.
+2. Otherwise → set `status: 'cancelled'` only; no refund.
+3. Notify patient and doctor.
+
+**Paystack refund:** `POST https://api.paystack.co/refund` with `{ transaction: paystack_reference, amount?: kobo }`. See `refundTransaction` in `lib/paystack/client.ts`.
+
+---
+
+## Cancellation & refunds policy
+
+- **Cancel ≥12 hours before session:** Paystack reversal (refund). Slot freed; patient refunded.
+- **Cancel <12 hours before:** No refund. Slot freed; payment retained.
+
+Document in PRD or product docs as needed. Cancel dialog and API enforce this policy.
+
+---
+
 ## Related Files Summary
 
 | File | Purpose |
 |------|---------|
-| `lib/paystack/client.ts` | Paystack API client (initialize, verify) |
+| `lib/paystack/client.ts` | Paystack API client (initialize, verify, refundTransaction) |
 | `app/api/payments/initialize/route.ts` | Initialize payment API route |
-| `app/payment/callback/route.ts` | **Payment callback handler (redirect issue here)** |
+| `app/payment/callback/route.ts` | Payment callback handler (redirect after Paystack) |
 | `app/api/payments/webhook/route.ts` | Paystack webhook handler (primary verification) |
+| `app/api/appointments/cancel/route.ts` | Cancel appointment; 12h refund logic |
 | `components/patient/book-appointment-form.tsx` | Booking form that triggers payment |
+| `components/patient/cancel-appointment-dialog.tsx` | Cancel UI; calls cancel API |
 
 ---
 

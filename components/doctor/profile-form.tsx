@@ -5,6 +5,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import {
+  logProfileUpdateError,
+  getProfileUpdateErrorMessage,
+  sanitizeYearsExperience,
+} from '@/lib/utils/profile-update-error'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -154,11 +159,11 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
         description: 'Profile picture updated successfully!',
       })
     } catch (error: any) {
-      console.error('Error uploading photo:', error)
+      logProfileUpdateError('avatar upload', error)
       addToast({
         variant: 'destructive',
         title: 'Upload Failed',
-        description: error.message || 'Failed to upload photo. Please try again.',
+        description: getProfileUpdateErrorMessage(error),
       })
     } finally {
       setIsUploadingPhoto(false)
@@ -200,14 +205,12 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
       
       if (!user) return
 
-      // Only update bio and years_experience
-      const updateData: any = {
+      const yearsExp = sanitizeYearsExperience(data.years_experience)
+      const updateData: Record<string, unknown> = {
         bio: data.bio || '',
       }
-
-      // Update years_experience if provided
-      if (data.years_experience) {
-        updateData.years_experience = data.years_experience
+      if (yearsExp) {
+        updateData.years_experience = yearsExp
       }
 
       const { data: updateResult, error } = await supabase
@@ -217,15 +220,7 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
         .select()
 
       if (error) {
-        console.error('Supabase error updating profile:', {
-          error,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          updateData,
-          userId: user.id
-        })
+        logProfileUpdateError('main update', error)
         throw error
       }
 
@@ -244,21 +239,11 @@ export function DoctorProfileForm({ profile }: DoctorProfileFormProps) {
         description: 'Profile updated successfully!',
       })
     } catch (error: any) {
-      console.error('Error updating profile:', {
-        error,
-        errorString: String(error),
-        errorMessage: error?.message,
-        errorDetails: error?.details,
-        errorHint: error?.hint,
-        errorCode: error?.code,
-        errorStack: error?.stack,
-        errorType: typeof error,
-        errorKeys: error ? Object.keys(error) : []
-      })
+      logProfileUpdateError('main update (catch)', error)
       addToast({
         variant: 'destructive',
         title: 'Update Failed',
-        description: error?.message || error?.details || error?.hint || String(error) || 'Failed to update profile. Please try again.',
+        description: getProfileUpdateErrorMessage(error),
       })
     } finally {
       setIsLoading(false)

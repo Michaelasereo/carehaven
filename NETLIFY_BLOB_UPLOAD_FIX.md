@@ -60,23 +60,25 @@ npm run deploy:netlify:region-us
 
 ### If deployment still fails:
 
-1. **Clear Netlify CLI cache:**
+1. **"fetch failed" / "Failed retrieving extensions for site"**: Try `npm run deploy:netlify:no-plugins`. Note: with plugins disabled, the Next.js plugin does not run, so the site may 404 on client routes or miss SSR. Use only as a temporary workaround; see [DEPLOYMENT.md](DEPLOYMENT.md) **No-plugins fallback** for details.
+
+2. **Clear Netlify CLI cache:**
    ```bash
    rm -rf ~/.netlify
    npx netlify-cli login
    ```
 
-2. **Run diagnostics:**
+3. **Run diagnostics:**
    ```bash
    ./scripts/diagnose-netlify-deployment.sh
    ```
 
-3. **Check Netlify status:**
+4. **Check Netlify status:**
    ```bash
    curl -s https://www.netlifystatus.com/api/v2/status.json | jq '.status.indicator'
    ```
 
-4. **Try manual deployment with increased timeout:**
+5. **Try manual deployment with increased timeout:**
    ```bash
    NETLIFY_RETRY_COUNT=5 NETLIFY_RETRY_TIMEOUT=300000 npx netlify-cli deploy --prod --timeout=300
    ```

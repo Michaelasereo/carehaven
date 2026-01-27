@@ -19,8 +19,9 @@ import Link from 'next/link'
 export default async function PatientDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
 
@@ -28,7 +29,7 @@ export default async function PatientDetailPage({
   const { data: patient, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('role', 'patient')
     .single()
 
@@ -45,17 +46,17 @@ export default async function PatientDetailPage({
     supabase
       .from('appointments')
       .select('*, profiles!appointments_doctor_id_fkey(full_name, specialty)')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .order('scheduled_at', { ascending: false }),
     supabase
       .from('prescriptions')
       .select('*, profiles!prescriptions_doctor_id_fkey(full_name)')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .order('created_at', { ascending: false }),
     supabase
       .from('investigations')
       .select('*, profiles!investigations_doctor_id_fkey(full_name)')
-      .eq('patient_id', params.id)
+      .eq('patient_id', id)
       .order('created_at', { ascending: false }),
   ])
 
@@ -209,9 +210,14 @@ export default async function PatientDetailPage({
                         <p className="text-sm text-gray-500 mt-1">Reason: {apt.chief_complaint}</p>
                       )}
                     </div>
-                    <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
-                      {apt.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
+                        {apt.status}
+                      </Badge>
+                      <Link href={`/admin/appointments/${apt.id}`}>
+                        <Button variant="outline" size="sm">View</Button>
+                      </Link>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -229,26 +235,31 @@ export default async function PatientDetailPage({
                 appointments.map((apt: any) => (
                   <div
                     key={apt.id}
-                    className="p-4 border rounded-lg"
+                    className="p-4 border rounded-lg flex items-start justify-between gap-4"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="font-medium">{apt.profiles?.full_name || 'Doctor'}</p>
-                        <p className="text-sm text-gray-600">{apt.profiles?.specialty}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-medium">{apt.profiles?.full_name || 'Doctor'}</p>
+                          <p className="text-sm text-gray-600">{apt.profiles?.specialty}</p>
+                        </div>
+                        <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
+                          {apt.status}
+                        </Badge>
                       </div>
-                      <Badge variant={apt.status === 'completed' ? 'default' : 'secondary'}>
-                        {apt.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
-                      <span>{format(new Date(apt.scheduled_at), 'MMM d, yyyy h:mm a')}</span>
-                      {apt.amount && (
-                        <span>₦{Math.round(Number(apt.amount) / 100).toLocaleString()}</span>
+                      <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+                        <span>{format(new Date(apt.scheduled_at), 'MMM d, yyyy h:mm a')}</span>
+                        {apt.amount && (
+                          <span>₦{Math.round(Number(apt.amount) / 100).toLocaleString()}</span>
+                        )}
+                      </div>
+                      {apt.chief_complaint && (
+                        <p className="text-sm text-gray-700 mt-2">{apt.chief_complaint}</p>
                       )}
                     </div>
-                    {apt.chief_complaint && (
-                      <p className="text-sm text-gray-700 mt-2">{apt.chief_complaint}</p>
-                    )}
+                    <Link href={`/admin/appointments/${apt.id}`} className="flex-shrink-0">
+                      <Button variant="outline" size="sm">View</Button>
+                    </Link>
                   </div>
                 ))
               ) : (

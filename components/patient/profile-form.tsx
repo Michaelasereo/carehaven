@@ -5,6 +5,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import {
+  logProfileUpdateError,
+  getProfileUpdateErrorMessage,
+  sanitizeGender,
+  sanitizeAge,
+} from '@/lib/utils/profile-update-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -120,11 +126,11 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         description: 'Profile picture updated successfully!',
       })
     } catch (error: any) {
-      console.error('Error uploading photo:', error)
+      logProfileUpdateError('avatar upload', error)
       addToast({
         variant: 'destructive',
         title: 'Upload Failed',
-        description: error.message || 'Failed to upload photo. Please try again.',
+        description: getProfileUpdateErrorMessage(error),
       })
     } finally {
       setIsUploadingPhoto(false)
@@ -185,86 +191,57 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         return
       }
 
-      let updateResult: any[] | null = null
-      let updateError: any = null
+      const gender = sanitizeGender(data.gender)
+      const age = sanitizeAge(data.age)
+      // Always omit age from main update to avoid "Could not find the 'age' column in the schema cache"
+      // (PostgREST caches schema; age may be missing until "NOTIFY pgrst, 'reload schema'" is run).
+      const mainPayload = {
+        full_name: data.full_name ?? '',
+        phone: data.phone ? String(data.phone) : null,
+        gender: gender ?? null,
+      }
+      if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.debug('[Profile update] main payload:', JSON.stringify(mainPayload, null, 2))
+      }
 
-      // Try updating with all fields including age
       const { data: updateData, error: updateErrorResponse } = await supabase
         .from('profiles')
-        .update({ 
-          full_name: data.full_name,
-          phone: data.phone || null,
-          age: data.age ? parseInt(data.age, 10) : null,
-          gender: data.gender || null
-        })
+        .update(mainPayload)
         .eq('id', user.id)
         .select('*')
 
-      updateResult = updateData
-      updateError = updateErrorResponse
+      let updateResult: any[] | null = updateData
+      const updateError = updateErrorResponse
 
-      // Handle schema cache errors specifically for age column
-      if (updateError && (updateError.message?.includes('age') || updateError.message?.includes('schema cache'))) {
-        console.warn('Schema cache error detected for age column, retrying without age first')
-        
-        // Retry without age if schema cache error
-        const { data: retryData, error: retryError } = await supabase
+      if (updateError) {
+        logProfileUpdateError('main update', updateError)
+        throw updateError
+      }
+
+      // Update age in a separate request. If schema cache lacks age, this may fail; we warn but don't fail.
+      if (age != null) {
+        const { error: ageError } = await supabase
           .from('profiles')
-          .update({ 
-            full_name: data.full_name,
-            phone: data.phone || null,
-            gender: data.gender || null
-          })
+          .update({ age })
           .eq('id', user.id)
           .select('*')
-        
-        if (retryError) {
-          console.error('Retry update failed:', retryError)
-          throw retryError
-        }
-        
-        if (!retryData || retryData.length === 0) {
-          throw new Error('Profile update failed: No rows were updated')
-        }
-        
-        // Update result with retry data
-        updateResult = retryData
-        
-        // If retry succeeded, try updating age separately
-        if (data.age) {
-          const { error: ageError } = await supabase
-            .from('profiles')
-            .update({ age: parseInt(data.age, 10) })
-            .eq('id', user.id)
-            .select('*')
-          
-          if (ageError) {
-            console.warn('Failed to update age separately:', ageError)
-            // Don't throw - other fields were updated successfully
-            // Age will be updated on next form submission or page refresh
+
+        if (ageError) {
+          if (ageError.message?.includes('age') || ageError.message?.includes('schema cache')) {
+            console.warn(
+              '[Profile update] Age column not in schema cache. Run "NOTIFY pgrst, \'reload schema\';" in Supabase SQL editor to fix.'
+            )
           } else {
-            // If age update succeeded, refetch the full profile
-            const { data: fullProfile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', user.id)
-              .single()
-            
-            if (fullProfile) {
-              updateResult = [fullProfile]
-            }
+            console.warn('Failed to update age separately:', ageError)
           }
+        } else {
+          const { data: fullProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          if (fullProfile) updateResult = [fullProfile]
         }
-      } else if (updateError) {
-        // For other errors, throw immediately
-        console.error('Supabase error updating profile:', {
-          error: updateError,
-          message: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint,
-          code: updateError.code,
-        })
-        throw updateError
       }
 
       if (!updateResult || updateResult.length === 0) {
@@ -295,18 +272,11 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
       router.refresh()
     } catch (error: any) {
-      console.error('Error updating profile:', {
-        error,
-        errorString: String(error),
-        errorMessage: error?.message,
-        errorDetails: error?.details,
-        errorHint: error?.hint,
-        errorCode: error?.code,
-      })
+      logProfileUpdateError('main update (catch)', error)
       addToast({
         variant: 'destructive',
         title: 'Update Failed',
-        description: error?.message || error?.details || error?.hint || String(error) || 'Failed to update profile. Please try again.',
+        description: getProfileUpdateErrorMessage(error),
       })
     } finally {
       setIsLoading(false)

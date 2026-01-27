@@ -71,3 +71,37 @@ export async function verifyPayment(reference: string) {
   return response.json()
 }
 
+/**
+ * Refund a Paystack transaction (e.g. for cancellation ≥12h before session).
+ * @param reference - Paystack transaction reference (e.g. paystack_reference on appointment)
+ * @param amountKobo - Optional. Amount to refund in kobo. Omit for full refund.
+ */
+export async function refundTransaction(reference: string, amountKobo?: number) {
+  const secret = process.env.PAYSTACK_SECRET_KEY
+  if (!secret) throw new Error('Paystack is not configured')
+
+  const body: { transaction: string; amount?: number } = { transaction: reference }
+  if (amountKobo != null && amountKobo > 0) body.amount = amountKobo
+
+  const response = await fetch('https://api.paystack.co/refund', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const err = data?.message ?? data?.error ?? `Refund failed (${response.status})`
+    console.error('❌ Paystack refund error:', { reference, status: response.status, data })
+    throw new Error(err)
+  }
+  if (data?.status !== true) {
+    const err = data?.message ?? 'Paystack refund was not successful'
+    throw new Error(err)
+  }
+  return data
+}
+

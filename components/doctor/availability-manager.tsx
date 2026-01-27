@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { createClient } from '@/lib/supabase/client'
-import { Trash2, Plus, Save } from 'lucide-react'
+import { Trash2, Plus, Save, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
+import { format } from 'date-fns'
 
 interface AvailabilitySlot {
   id?: string
@@ -33,6 +34,28 @@ export function AvailabilityManager({ doctorId, initialAvailability, licenseVeri
   const { addToast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [isVerified, setIsVerified] = useState(licenseVerified)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+
+  const buildGroupedFromInitial = useCallback((initial: any[]): Record<number, AvailabilitySlot[]> => {
+    const grouped: Record<number, AvailabilitySlot[]> = {}
+    for (let i = 0; i < 7; i++) grouped[i] = []
+    initial.forEach((slot) => {
+      if (!grouped[slot.day_of_week]) grouped[slot.day_of_week] = []
+      grouped[slot.day_of_week].push({
+        id: slot.id,
+        day_of_week: slot.day_of_week,
+        start_time: typeof slot.start_time === 'string' ? slot.start_time.substring(0, 5) : '09:00',
+        end_time: typeof slot.end_time === 'string' ? slot.end_time.substring(0, 5) : '17:00',
+        active: !!slot.active,
+      })
+    })
+    return grouped
+  }, [])
+
+  // Sync local state when initialAvailability changes (e.g. after router.refresh())
+  useEffect(() => {
+    setAvailability(buildGroupedFromInitial(initialAvailability))
+  }, [initialAvailability, buildGroupedFromInitial])
 
   // Subscribe to verification status changes
   useEffect(() => {
@@ -60,29 +83,19 @@ export function AvailabilityManager({ doctorId, initialAvailability, licenseVeri
     }
   }, [doctorId, supabase])
   
-  // Group availability by day
   const [availability, setAvailability] = useState<Record<number, AvailabilitySlot[]>>(() => {
     const grouped: Record<number, AvailabilitySlot[]> = {}
-    
-    // Initialize all days
-    for (let i = 0; i < 7; i++) {
-      grouped[i] = []
-    }
-    
-    // Populate with existing data
+    for (let i = 0; i < 7; i++) grouped[i] = []
     initialAvailability.forEach((slot) => {
-      if (!grouped[slot.day_of_week]) {
-        grouped[slot.day_of_week] = []
-      }
+      if (!grouped[slot.day_of_week]) grouped[slot.day_of_week] = []
       grouped[slot.day_of_week].push({
         id: slot.id,
         day_of_week: slot.day_of_week,
-        start_time: slot.start_time.substring(0, 5), // Extract HH:MM from time
-        end_time: slot.end_time.substring(0, 5),
-        active: slot.active,
+        start_time: typeof slot.start_time === 'string' ? slot.start_time.substring(0, 5) : '09:00',
+        end_time: typeof slot.end_time === 'string' ? slot.end_time.substring(0, 5) : '17:00',
+        active: !!slot.active,
       })
     })
-    
     return grouped
   })
 
@@ -183,6 +196,7 @@ export function AvailabilityManager({ doctorId, initialAvailability, licenseVeri
         }
       }
 
+      setLastSavedAt(new Date())
       router.refresh()
       addToast({
         variant: 'success',
@@ -293,11 +307,17 @@ export function AvailabilityManager({ doctorId, initialAvailability, licenseVeri
         </Card>
       ))}
 
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
+        {lastSavedAt && (
+          <p className="text-sm text-gray-500 flex items-center gap-1.5 order-2 sm:order-1 sm:mr-auto">
+            <Check className="h-4 w-4 text-green-600" />
+            Last saved at {format(lastSavedAt, 'PPp')}
+          </p>
+        )}
         <Button
           onClick={handleSave}
           disabled={isSaving || !isVerified}
-          className="bg-teal-600 hover:bg-teal-700"
+          className="bg-teal-600 hover:bg-teal-700 order-1 sm:order-2"
         >
           <Save className="h-4 w-4 mr-2" />
           {isSaving ? 'Saving...' : !isVerified ? 'Verification Required' : 'Save Availability'}

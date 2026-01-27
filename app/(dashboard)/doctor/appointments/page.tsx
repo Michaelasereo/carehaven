@@ -33,16 +33,17 @@ export default async function DoctorAppointmentsPage({
     redirect('/patient')
   }
 
-  // Get unique statuses for filters
+  // Get unique statuses for filters (from paid/waived only)
   const { data: statusData } = await supabase
     .from('appointments')
     .select('status')
     .eq('doctor_id', user.id)
+    .in('payment_status', ['paid', 'waived'])
     .limit(1000)
 
   const statuses = Array.from(new Set(statusData?.map(a => a.status).filter(Boolean) || []))
 
-  // Build query with filters
+  // Build query with filters (only paid/waived)
   let query = supabase
     .from('appointments')
     .select(`
@@ -50,6 +51,7 @@ export default async function DoctorAppointmentsPage({
       patient:profiles!appointments_patient_id_fkey(full_name, email)
     `)
     .eq('doctor_id', user.id)
+    .in('payment_status', ['paid', 'waived'])
 
   if (searchParams.status && searchParams.status !== 'all') {
     query = query.eq('status', searchParams.status)
@@ -87,6 +89,7 @@ export default async function DoctorAppointmentsPage({
     .from('appointments')
     .select('*', { count: 'exact', head: true })
     .eq('doctor_id', user.id)
+    .in('payment_status', ['paid', 'waived'])
 
   if (searchParams.status && searchParams.status !== 'all') {
     countQuery = countQuery.eq('status', searchParams.status)

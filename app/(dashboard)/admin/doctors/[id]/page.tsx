@@ -21,8 +21,9 @@ import Link from 'next/link'
 export default async function DoctorDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   // Auth and role checks are handled by app/(dashboard)/layout.tsx
   const supabase = await createClient()
   
@@ -38,7 +39,7 @@ export default async function DoctorDetailPage({
   const { data: doctor, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('role', 'doctor')
     .single()
 
@@ -58,31 +59,31 @@ export default async function DoctorDetailPage({
     supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
-      .eq('doctor_id', params.id),
+      .eq('doctor_id', id),
     supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
-      .eq('doctor_id', params.id)
+      .eq('doctor_id', id)
       .eq('status', 'completed'),
     supabase
       .from('appointments')
       .select('*', { count: 'exact', head: true })
-      .eq('doctor_id', params.id)
+      .eq('doctor_id', id)
       .eq('status', 'cancelled'),
     supabase
       .from('appointments')
       .select('patient_id', { count: 'exact', head: true })
-      .eq('doctor_id', params.id),
+      .eq('doctor_id', id),
     supabase
       .from('appointments')
       .select('*, profiles!appointments_patient_id_fkey(full_name, email)')
-      .eq('doctor_id', params.id)
+      .eq('doctor_id', id)
       .order('scheduled_at', { ascending: false })
       .limit(20),
     supabase
       .from('appointments')
       .select('amount, scheduled_at')
-      .eq('doctor_id', params.id)
+      .eq('doctor_id', id)
       .eq('payment_status', 'paid'),
   ])
 
@@ -261,7 +262,7 @@ export default async function DoctorDetailPage({
                         </Badge>
                       </div>
                     </div>
-                    <Link href={`/admin/appointments?doctor=${doctor.id}`}>
+                    <Link href={`/admin/appointments/${apt.id}`}>
                       <Button variant="outline" size="sm">View</Button>
                     </Link>
                   </div>

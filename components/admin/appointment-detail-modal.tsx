@@ -104,10 +104,10 @@ export function AppointmentDetailModal({
     fetchAppointmentDetails()
   }, [appointmentId, isOpen, userRole, supabase])
 
-  if (!appointment) return null
-
-  const scheduledAt = new Date(appointment.scheduled_at)
-  const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000)
+  const scheduledAt = appointment ? new Date(appointment.scheduled_at) : null
+  const endTime = scheduledAt && appointment
+    ? new Date(scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000)
+    : null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -119,9 +119,9 @@ export function AppointmentDetailModal({
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
-          <div className="py-8 text-center">Loading...</div>
-        ) : (
+        {loading && !appointment ? (
+          <div className="py-8 text-center">Loading…</div>
+        ) : appointment && scheduledAt && endTime ? (
           <div className="space-y-6">
             {/* Basic Information */}
             <Card className="p-6">
@@ -163,8 +163,17 @@ export function AppointmentDetailModal({
                   <div>
                     <p className="text-sm text-gray-600">Amount</p>
                     <p className="font-medium">₦{Math.round(Number(appointment.amount) / 100).toLocaleString()}</p>
-                    <Badge variant={appointment.payment_status === 'paid' ? 'default' : 'secondary'} className="mt-1">
-                      {appointment.payment_status}
+                    <Badge
+                      variant={
+                        appointment.payment_status === 'paid' || appointment.payment_status === 'waived'
+                          ? 'default'
+                          : appointment.payment_status === 'failed'
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                      className="mt-1"
+                    >
+                      {appointment.payment_status === 'waived' ? 'Waived' : appointment.payment_status}
                     </Badge>
                   </div>
                 )}
@@ -246,7 +255,11 @@ export function AppointmentDetailModal({
               </Card>
             )}
           </div>
-        )}
+        ) : !loading && appointmentId ? (
+          <div className="py-8 text-center text-gray-500">Could not load appointment details.</div>
+        ) : !appointmentId ? (
+          <div className="py-8 text-center text-gray-500">No appointment selected.</div>
+        ) : null}
       </DialogContent>
     </Dialog>
   )

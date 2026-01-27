@@ -13,20 +13,49 @@ export async function POST(request: Request) {
 
     const { userId, type, title, body, data } = await request.json()
 
-    // Only allow creating notifications for yourself or if you're an admin
+    if (!userId || !type) {
+      return NextResponse.json(
+        { error: 'Missing userId or type' },
+        { status: 400 }
+      )
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (userId !== user.id && profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+    const isSelf = userId === user.id
+
+    let allowed = isSelf || isAdmin
+
+    // Allow creating notifications for the other party in an appointment (cancel, reschedule, etc.)
+    const appointmentId = data?.appointment_id ?? data?.appointmentId
+    if (!allowed && appointmentId && type === 'appointment') {
+      const { data: apt } = await supabase
+        .from('appointments')
+        .select('patient_id, doctor_id')
+        .eq('id', appointmentId)
+        .single()
+
+      if (apt && (apt.patient_id === user.id || apt.doctor_id === user.id)) {
+        const otherId = apt.patient_id === user.id ? apt.doctor_id : apt.patient_id
+        if (userId === otherId) allowed = true
+      }
+    }
+
+    if (!allowed) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     await createNotification(userId, type, title, body, data)
 
-    return NextResponse.json({ success: true })
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
   } catch (error) {
     console.error('Error creating notification:', error)
     return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 })

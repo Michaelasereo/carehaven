@@ -50,7 +50,7 @@ export function AdminBookAppointment({
   const [doctorId, setDoctorId] = useState<string>('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
-  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'pending' | 'waived'>('waived')
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'waived'>('waived')
   const [symptoms, setSymptoms] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -306,13 +306,12 @@ export function AdminBookAppointment({
           </div>
           <div className="space-y-2">
             <Label>Payment Status *</Label>
-            <Select value={paymentStatus} onValueChange={(value) => setPaymentStatus(value as 'paid' | 'pending' | 'waived')}>
+            <Select value={paymentStatus} onValueChange={(value) => setPaymentStatus(value as 'paid' | 'waived')}>
               <SelectTrigger>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="waived">Waived</SelectItem>
               </SelectContent>
             </Select>

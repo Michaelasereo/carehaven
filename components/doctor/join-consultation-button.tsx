@@ -97,17 +97,6 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
 
       if (error) throw error
 
-      // Check if payment is pending
-      if (appointment.payment_status === 'pending' && appointment.status === 'scheduled') {
-        addToast({
-          variant: 'destructive',
-          title: 'Payment Pending',
-          description: 'This appointment cannot be joined until payment is confirmed. Please wait for the patient to complete payment.',
-        })
-        setIsLoading(false)
-        return
-      }
-
       // Verify appointment is confirmed or in progress
       if (appointment.status !== 'confirmed' && appointment.status !== 'in_progress') {
         addToast({
@@ -221,21 +210,20 @@ export function JoinConsultationButton({ appointmentId }: JoinConsultationButton
     }
   }
 
-  // Show button if within join window, appointment is confirmed/in_progress, or no scheduled time yet
   const showButton = canJoin || appointmentStatus === 'confirmed' || appointmentStatus === 'in_progress' || !scheduledAt
-
-  // Allow joining if status is in_progress or within join window
   const allowJoin = appointmentStatus === 'in_progress' || canJoin || appointmentStatus === 'confirmed'
 
   if (!showButton && scheduledAt) {
     return null
   }
 
+  const disabled = isLoading || (!allowJoin && !!scheduledAt)
+
   return (
     <Button
       onClick={handleJoin}
       className="bg-teal-600 hover:bg-teal-700"
-      disabled={isLoading || (!allowJoin && !!scheduledAt)}
+      disabled={disabled}
     >
       <Video className="h-4 w-4 mr-2" />
       {isLoading ? 'Joining...' : appointmentStatus === 'in_progress' ? 'Rejoin Consultation' : 'Join Consultation'}

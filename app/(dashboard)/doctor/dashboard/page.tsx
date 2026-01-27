@@ -55,6 +55,7 @@ export default async function DoctorDashboardPage() {
       .from('appointments')
       .select('*', { count: 'exact', head: true })
       .eq('doctor_id', user.id)
+      .in('payment_status', ['paid', 'waived'])
       .in('status', ['scheduled', 'confirmed'])
       .gte('scheduled_at', new Date().toISOString()),
     // Previous period for trends
@@ -90,6 +91,14 @@ export default async function DoctorDashboardPage() {
 
   // Get total unique patients
   const totalPatients = await getUniquePatients(user.id)
+
+  if ((upcomingAppointments ?? 0) === 0) {
+    console.log('[DoctorDashboard] Zero upcoming appointments', {
+      doctor_id: user.id,
+      filters: { status: ['scheduled', 'confirmed'], scheduled_at_gte: new Date().toISOString() },
+      count: upcomingAppointments ?? 0,
+    })
+  }
 
   const totalRevenue = paidAppointments?.reduce((sum, apt) => sum + (Number(apt.amount) || 0), 0) || 0
   const previousRevenue = paidAppointmentsPrevious?.reduce((sum, apt) => sum + (Number(apt.amount) || 0), 0) || 0

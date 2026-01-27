@@ -24,6 +24,7 @@ export default async function AppointmentsPage() {
     .from('appointments')
     .select('*, profiles!appointments_doctor_id_fkey(*)')
     .eq('patient_id', user.id)
+    .in('payment_status', ['paid', 'waived'])
     .order('scheduled_at', { ascending: false })
 
   return (

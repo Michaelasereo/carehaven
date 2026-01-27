@@ -1,24 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { SOAPForm } from '@/components/consultation/soap-form'
+import { redirect, notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Clock, User, Video, FileText, Pill, TestTube } from 'lucide-react'
+import { Calendar, Clock, User, FileText, Pill, TestTube } from 'lucide-react'
 import { format } from 'date-fns'
 import Link from 'next/link'
-import { JoinConsultationButton } from '@/components/doctor/join-consultation-button'
-import { CreatePrescriptionButton } from '@/components/doctor/create-prescription-button'
-import { RequestInvestigationButton } from '@/components/doctor/request-investigation-button'
-import { PatientHistoryTimeline } from '@/components/doctor/patient-history-timeline'
 import { ViewResultsLink } from '@/components/investigations/view-results-link'
-import { AddInterpretationButton } from '@/components/doctor/add-interpretation-button'
 
-// Force dynamic rendering to ensure fresh data after appointment status changes
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function AppointmentDetailsPage({
+export default async function AdminAppointmentDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>
@@ -33,54 +26,61 @@ export default async function AppointmentDetailsPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
+    .select('role')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'doctor') {
-    redirect('/patient')
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'super_admin')) {
+    redirect('/auth/signin')
   }
 
-  // Fetch appointment with patient details
-  const { data: appointment } = await supabase
+  const isSuperAdmin = profile.role === 'super_admin'
+
+  const { data: appointment, error } = await supabase
     .from('appointments')
     .select(`
       *,
-      profiles!appointments_patient_id_fkey(*)
+      patient:profiles!appointments_patient_id_fkey(*),
+      doctor:profiles!appointments_doctor_id_fkey(*)
     `)
     .eq('id', id)
-    .eq('doctor_id', user.id)
     .single()
 
-  if (!appointment) {
-    redirect('/doctor/sessions')
+  if (error || !appointment) {
+    notFound()
   }
 
-  // Fetch consultation notes
-  const { data: notes } = await supabase
-    .from('consultation_notes')
-    .select('*')
-    .eq('appointment_id', id)
-    .single()
+  const [
+    { data: soapNotes },
+    { data: prescriptionsData },
+    { data: investigationsData },
+  ] = await Promise.all([
+    isSuperAdmin
+      ? supabase
+          .from('consultation_notes')
+          .select('*')
+          .eq('appointment_id', id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from('prescriptions')
+      .select('*')
+      .eq('appointment_id', id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('investigations')
+      .select('*')
+      .eq('appointment_id', id)
+      .order('created_at', { ascending: false }),
+  ])
 
-  // Fetch prescriptions
-  const { data: prescriptions } = await supabase
-    .from('prescriptions')
-    .select('*')
-    .eq('appointment_id', id)
-    .order('created_at', { ascending: false })
+  const prescriptions = prescriptionsData || []
+  const investigations = investigationsData || []
 
-  // Fetch investigations
-  const { data: investigations } = await supabase
-    .from('investigations')
-    .select('*')
-    .eq('appointment_id', id)
-    .order('created_at', { ascending: false })
-
-  const patient = appointment.profiles
+  const patient = appointment.patient as Record<string, unknown> | null
+  const doctor = appointment.doctor as Record<string, unknown> | null
   const scheduledAt = new Date(appointment.scheduled_at)
   const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000)
-  const showJoin = ['scheduled', 'confirmed', 'in_progress'].includes(appointment.status)
   const paymentLabel = appointment.payment_status === 'waived' ? 'Waived' : 'Paid'
   const isCompleted = appointment.status === 'completed'
 
@@ -88,13 +88,13 @@ export default async function AppointmentDetailsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href={`/doctor/sessions/${appointment.patient_id}`}>
-            <Button variant="outline" size="sm">← Back to Patient</Button>
+          <Link href="/admin/appointments">
+            <Button variant="outline" size="sm">← Back to Appointments</Button>
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Appointment Details</h1>
             <p className="text-gray-600 mt-1">
-              Consultation with {patient?.full_name || 'Patient'}
+              {patient?.full_name as string || 'Patient'} with {doctor?.full_name as string || 'Doctor'}
             </p>
           </div>
         </div>
@@ -102,12 +102,7 @@ export default async function AppointmentDetailsPage({
           <Badge variant={appointment.status === 'completed' ? 'default' : 'secondary'}>
             {appointment.status}
           </Badge>
-          {showJoin && (
-            <Badge variant="default">{paymentLabel}</Badge>
-          )}
-          {showJoin && (
-            <JoinConsultationButton appointmentId={appointment.id} />
-          )}
+          <Badge variant="default">{paymentLabel}</Badge>
         </div>
       </div>
 
@@ -120,48 +115,50 @@ export default async function AppointmentDetailsPage({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-600">Name</p>
-            <p className="font-medium">{patient?.full_name || 'N/A'}</p>
+            <Link href={`/admin/patients/${appointment.patient_id}`} className="font-medium hover:text-blue-600">
+              {(patient?.full_name as string) || 'N/A'}
+            </Link>
           </div>
           <div>
             <p className="text-sm text-gray-600">Email</p>
-            <p className="font-medium">{patient?.email || 'N/A'}</p>
+            <p className="font-medium">{(patient?.email as string) || 'N/A'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Phone</p>
-            <p className="font-medium">{patient?.phone || 'N/A'}</p>
+            <p className="font-medium">{(patient?.phone as string) || 'N/A'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Date of Birth</p>
             <p className="font-medium">
               {patient?.date_of_birth
-                ? format(new Date(patient.date_of_birth), 'MMM d, yyyy')
+                ? format(new Date(patient.date_of_birth as string), 'MMM d, yyyy')
                 : 'N/A'}
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Gender</p>
-            <p className="font-medium">{patient?.gender || 'N/A'}</p>
+            <p className="font-medium">{(patient?.gender as string) || 'N/A'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Blood Group</p>
-            <p className="font-medium">{patient?.blood_group || 'N/A'}</p>
+            <p className="font-medium">{(patient?.blood_group as string) || 'N/A'}</p>
           </div>
         </div>
-        {patient?.allergies && patient.allergies.length > 0 && (
+        {patient?.allergies && Array.isArray(patient.allergies) && (patient.allergies as string[]).length > 0 && (
           <div className="mt-4">
             <p className="text-sm text-gray-600">Allergies</p>
             <div className="flex flex-wrap gap-2 mt-1">
-              {patient.allergies.map((allergy: string, idx: number) => (
+              {(patient.allergies as string[]).map((allergy: string, idx: number) => (
                 <Badge key={idx} variant="outline">{allergy}</Badge>
               ))}
             </div>
           </div>
         )}
-        {patient?.chronic_conditions && patient.chronic_conditions.length > 0 && (
+        {patient?.chronic_conditions && Array.isArray(patient.chronic_conditions) && (patient.chronic_conditions as string[]).length > 0 && (
           <div className="mt-4">
             <p className="text-sm text-gray-600">Chronic Conditions</p>
             <div className="flex flex-wrap gap-2 mt-1">
-              {patient.chronic_conditions.map((condition: string, idx: number) => (
+              {(patient.chronic_conditions as string[]).map((condition: string, idx: number) => (
                 <Badge key={idx} variant="outline">{condition}</Badge>
               ))}
             </div>
@@ -176,6 +173,15 @@ export default async function AppointmentDetailsPage({
           Appointment Details
         </h2>
         <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Doctor</p>
+            <Link href={`/admin/doctors/${appointment.doctor_id}`} className="font-medium hover:text-teal-600">
+              {(doctor?.full_name as string) || 'N/A'}
+            </Link>
+            {(doctor?.specialty as string) && (
+              <p className="text-sm text-gray-500">{doctor.specialty as string}</p>
+            )}
+          </div>
           <div>
             <p className="text-sm text-gray-600">Scheduled Date</p>
             <p className="font-medium">{format(scheduledAt, 'MMM d, yyyy')}</p>
@@ -195,6 +201,12 @@ export default async function AppointmentDetailsPage({
             <p className="text-sm text-gray-600">Payment Status</p>
             <Badge variant="default">{paymentLabel}</Badge>
           </div>
+          {appointment.amount != null && (
+            <div>
+              <p className="text-sm text-gray-600">Amount</p>
+              <p className="font-medium">₦{Math.round(Number(appointment.amount) / 100).toLocaleString()}</p>
+            </div>
+          )}
         </div>
         {appointment.symptoms_description && (
           <div className="mt-4">
@@ -204,38 +216,58 @@ export default async function AppointmentDetailsPage({
         )}
       </Card>
 
-      {/* Consultation Notes */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
+      {/* Consultation Notes (SOAP) - super_admin only */}
+      {isSuperAdmin && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Consultation Notes
+            Consultation Notes (SOAP)
           </h2>
-        </div>
-        {notes ? (
           <div className="space-y-4">
-            <SOAPForm appointmentId={appointment.id} doctorId={user.id} patientId={appointment.patient_id} />
+            {soapNotes?.subjective && (
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Subjective</p>
+                <p className="text-gray-900">{soapNotes.subjective}</p>
+              </div>
+            )}
+            {soapNotes?.objective && (
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Objective</p>
+                <p className="text-gray-900">{soapNotes.objective}</p>
+              </div>
+            )}
+            {soapNotes?.assessment && (
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Assessment</p>
+                <p className="text-gray-900">{soapNotes.assessment}</p>
+              </div>
+            )}
+            {soapNotes?.plan && (
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Plan</p>
+                <p className="text-gray-900">{soapNotes.plan}</p>
+              </div>
+            )}
+            {soapNotes?.diagnosis && (
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Diagnosis</p>
+                <p className="text-gray-900">{soapNotes.diagnosis}</p>
+              </div>
+            )}
+            {(!soapNotes || !(soapNotes.subjective || soapNotes.objective || soapNotes.assessment || soapNotes.plan || soapNotes.diagnosis)) && (
+              <p className="text-gray-500">No consultation notes recorded.</p>
+            )}
           </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-gray-600">No consultation notes yet. Start documenting below.</p>
-            <SOAPForm appointmentId={appointment.id} doctorId={user.id} patientId={appointment.patient_id} />
-          </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Prescriptions */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Pill className="h-5 w-5" />
-            Prescriptions
-          </h2>
-          {isCompleted && (
-            <CreatePrescriptionButton appointmentId={appointment.id} />
-          )}
-        </div>
-        {prescriptions && prescriptions.length > 0 ? (
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <Pill className="h-5 w-5" />
+          Prescriptions
+        </h2>
+        {prescriptions.length > 0 ? (
           <div className="space-y-4">
             {prescriptions.map((prescription: any) => (
               <div key={prescription.id} className="border rounded-lg p-4">
@@ -260,36 +292,25 @@ export default async function AppointmentDetailsPage({
                   </div>
                 )}
                 {prescription.duration_days && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    Duration: {prescription.duration_days} days
-                  </p>
+                  <p className="text-sm text-gray-600 mt-2">Duration: {prescription.duration_days} days</p>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            {isCompleted ? (
-              <p>No prescriptions yet. Create one below.</p>
-            ) : (
-              <p>Prescriptions will be available after consultation is completed.</p>
-            )}
-          </div>
+          <p className="text-center py-8 text-gray-500">
+            {isCompleted ? 'No prescriptions for this appointment.' : 'Prescriptions will be available after consultation is completed.'}
+          </p>
         )}
       </Card>
 
       {/* Investigations */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <TestTube className="h-5 w-5" />
-            Investigations
-          </h2>
-          {isCompleted && (
-            <RequestInvestigationButton appointmentId={appointment.id} />
-          )}
-        </div>
-        {investigations && investigations.length > 0 ? (
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <TestTube className="h-5 w-5" />
+          Investigations
+        </h2>
+        {investigations.length > 0 ? (
           <div className="space-y-4">
             {investigations.map((investigation: any) => (
               <div key={investigation.id} className="border rounded-lg p-4">
@@ -321,34 +342,15 @@ export default async function AppointmentDetailsPage({
                     <ViewResultsLink filePath={investigation.results_url} label="View Results File" />
                   </div>
                 )}
-                {isCompleted && (
-                  <div className="mt-3">
-                    <AddInterpretationButton
-                      investigationId={investigation.id}
-                      currentInterpretation={investigation.interpretation}
-                      investigationStatus={investigation.status}
-                    />
-                  </div>
-                )}
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            {isCompleted ? (
-              <p>No investigations requested yet. Request one below.</p>
-            ) : (
-              <p>Investigations will be available after consultation is completed.</p>
-            )}
-          </div>
+          <p className="text-center py-8 text-gray-500">
+            {isCompleted ? 'No investigations for this appointment.' : 'Investigations will be available after consultation is completed.'}
+          </p>
         )}
       </Card>
-
-      {/* Patient Medical History */}
-      <PatientHistoryTimeline 
-        patientId={appointment.patient_id}
-        currentAppointmentId={appointment.id}
-      />
     </div>
   )
 }

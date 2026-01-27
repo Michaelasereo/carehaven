@@ -56,13 +56,6 @@ export default function ConsultationPage() {
             return
           }
 
-          // Check payment status
-          if (appointment.payment_status === 'pending' && appointment.status === 'scheduled') {
-            setErrorMessage('Payment is still pending. The consultation room will be available once payment is confirmed.')
-            setIsLoading(false)
-            return
-          }
-
           // Check appointment status
           if (appointment.status !== 'confirmed' && appointment.status !== 'in_progress') {
             setErrorMessage(`This appointment is ${appointment.status}. Only confirmed or in-progress appointments can be joined.`)

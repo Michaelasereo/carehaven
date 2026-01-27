@@ -1,6 +1,26 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
 
+// React 19 removed React.act; react-dom/test-utils act delegates to it and throws.
+// Provide a standalone act that uses flushSync so updates commit synchronously.
+jest.mock('react-dom/test-utils', () => {
+  const ReactDOM = require('react-dom')
+  const actual = jest.requireActual('react-dom/test-utils')
+  const act = (cb) => {
+    let result
+    if (typeof ReactDOM.flushSync === 'function') {
+      ReactDOM.flushSync(() => {
+        result = typeof cb === 'function' ? cb() : undefined
+      })
+    } else {
+      result = typeof cb === 'function' ? cb() : undefined
+    }
+    if (result != null && typeof result === 'object' && typeof result.then === 'function') return result
+    return Promise.resolve(result)
+  }
+  return { ...actual, act }
+})
+
 // Polyfill for Request/Response/Headers in test environment (for API route tests)
 // These are available in jsdom but may need explicit globals
 if (typeof globalThis.Request === 'undefined') {

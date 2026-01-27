@@ -1,5 +1,11 @@
+import { createClient } from '@supabase/supabase-js'
 import { createNotification } from './create'
 import { sendEmail } from '@/lib/email/client'
+
+const serviceRoleClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+)
 
 /**
  * Helper function to ensure doctor name has "Dr." prefix
@@ -119,6 +125,40 @@ export async function notifyDoctorAppointmentBooked(
     `${patientName} has booked an appointment for ${scheduledAt.toLocaleDateString()}`,
     { appointment_id: appointmentId }
   )
+}
+
+/**
+ * Create notification for all admins (platform-level events).
+ * Uses service-role to fetch admin IDs. Skips excludeUserId when provided (e.g. acting admin).
+ */
+export async function notifyAdmins(
+  type: 'appointment' | 'system',
+  title: string,
+  body: string,
+  data?: Record<string, unknown>,
+  excludeUserId?: string
+) {
+  const { data: admins, error } = await serviceRoleClient
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'super_admin'])
+
+  if (error) {
+    console.error('[notifyAdmins] Failed to fetch admins:', error)
+    return
+  }
+
+  const ids = (admins || [])
+    .map((r) => r.id)
+    .filter((id) => id && (!excludeUserId || id !== excludeUserId))
+
+  for (const adminId of ids) {
+    try {
+      await createNotification(adminId, type, title, body, data)
+    } catch (e) {
+      console.error(`[notifyAdmins] Failed to notify admin ${adminId}:`, e)
+    }
+  }
 }
 
 /**

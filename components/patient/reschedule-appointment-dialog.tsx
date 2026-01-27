@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -19,6 +19,7 @@ import { useUpdateAppointment } from '@/lib/react-query/mutations'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
+import { isTimeAvailable, type AvailabilitySlot } from '@/lib/utils/availability'
 
 const rescheduleSchema = z.object({
   scheduled_at: z.string().min(1, 'Please select a new date and time'),
@@ -43,6 +44,48 @@ export function RescheduleAppointmentDialog({
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('09:00')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([])
+  const [existingAppointments, setExistingAppointments] = useState<Array<{ scheduled_at: string; duration_minutes: number }>>([])
+  const [slotValidationError, setSlotValidationError] = useState<string | null>(null)
+
+  const durationMinutes = appointment.duration_minutes ?? 45
+  const doctorId = appointment.doctor_id
+
+  useEffect(() => {
+    if (!selectedDate || !doctorId) {
+      setAvailabilitySlots([])
+      setExistingAppointments([])
+      return
+    }
+    const fetchAvailability = async () => {
+      setSlotValidationError(null)
+      try {
+        const [availRes, slotsRes] = await Promise.all([
+          supabase
+            .from('doctor_availability')
+            .select('day_of_week, start_time, end_time, active')
+            .eq('doctor_id', doctorId)
+            .eq('active', true),
+          fetch(
+            `/api/availability/doctor/${doctorId}?date=${selectedDate}&exclude=${encodeURIComponent(appointment.id)}`
+          ).then((r) => r.json()),
+        ])
+        const slots: AvailabilitySlot[] = (availRes.data ?? []).map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          active: s.active,
+        }))
+        setAvailabilitySlots(slots)
+        setExistingAppointments(Array.isArray(slotsRes?.slots) ? slotsRes.slots : [])
+      } catch (e) {
+        console.error('Reschedule availability fetch:', e)
+        setAvailabilitySlots([])
+        setExistingAppointments([])
+      }
+    }
+    fetchAvailability()
+  }, [selectedDate, doctorId, appointment.id, supabase])
 
   const {
     register,
@@ -60,13 +103,12 @@ export function RescheduleAppointmentDialog({
       return
     }
 
+    setSlotValidationError(null)
     setIsSubmitting(true)
 
     try {
-      // Combine date and time
       const scheduledAt = new Date(`${selectedDate}T${selectedTime}`).toISOString()
 
-      // Validate new date is in the future
       if (new Date(scheduledAt) <= new Date()) {
         addToast({
           variant: 'destructive',
@@ -77,13 +119,37 @@ export function RescheduleAppointmentDialog({
         return
       }
 
+      const scheduledDate = new Date(`${selectedDate}T${selectedTime}`)
+      const timeStr = selectedTime.length === 5 ? selectedTime : selectedTime.slice(0, 5)
+
+      if (availabilitySlots.length > 0) {
+        if (!isTimeAvailable(scheduledDate, timeStr, availabilitySlots)) {
+          setSlotValidationError('The selected time is not in the doctor\'s schedule. Please choose an available slot.')
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      const bufferMinutes = 15
+      const newEnd = new Date(scheduledDate.getTime() + (durationMinutes + bufferMinutes) * 60 * 1000)
+      const hasConflict = existingAppointments.some((apt) => {
+        const aptStart = new Date(apt.scheduled_at)
+        const aptEnd = new Date(aptStart.getTime() + ((apt.duration_minutes ?? 45) + bufferMinutes) * 60 * 1000)
+        return scheduledDate < aptEnd && newEnd > aptStart
+      })
+      if (hasConflict) {
+        setSlotValidationError('This time slot is already booked or overlaps with another appointment. Please choose another.')
+        setIsSubmitting(false)
+        return
+      }
+
       await updateAppointment.mutateAsync({
         id: appointment.id,
         scheduled_at: scheduledAt,
         status: 'scheduled', // Reset to scheduled if it was confirmed
       })
 
-      // Create notification via API
+      // Notify patient and doctor
       try {
         await fetch('/api/notifications/create', {
           method: 'POST',
@@ -96,6 +162,19 @@ export function RescheduleAppointmentDialog({
             data: { appointment_id: appointment.id },
           }),
         })
+        if (appointment.doctor_id) {
+          await fetch('/api/notifications/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: appointment.doctor_id,
+              type: 'appointment',
+              title: 'Appointment Rescheduled',
+              body: `An appointment has been rescheduled to ${new Date(scheduledAt).toLocaleDateString()}`,
+              data: { appointment_id: appointment.id },
+            }),
+          })
+        }
       } catch (notifError) {
         console.error('Error creating notification:', notifError)
       }
@@ -109,6 +188,7 @@ export function RescheduleAppointmentDialog({
         title: 'Reschedule Failed',
         description: 'Failed to reschedule appointment. Please try again.',
       })
+      setSlotValidationError(null)
     } finally {
       setIsSubmitting(false)
     }
@@ -175,6 +255,9 @@ export function RescheduleAppointmentDialog({
 
           {errors.scheduled_at && (
             <p className="text-sm text-red-600">{errors.scheduled_at.message}</p>
+          )}
+          {slotValidationError && (
+            <p className="text-sm text-red-600">{slotValidationError}</p>
           )}
 
           <DialogFooter>

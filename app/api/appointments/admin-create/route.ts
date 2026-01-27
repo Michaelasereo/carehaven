@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   notifyAppointmentConfirmed,
   notifyDoctorAppointmentBooked,
+  notifyAdmins,
   sendDoctorAppointmentEmail,
 } from '@/lib/notifications/triggers'
 import { isTimeAvailable, type AvailabilitySlot } from '@/lib/utils/availability'
@@ -163,6 +164,14 @@ export async function POST(request: Request) {
         appointment.id,
         patient?.full_name || 'Patient',
         new Date(appointment.scheduled_at)
+      )
+
+      await notifyAdmins(
+        'system',
+        'New appointment booked',
+        `Admin booked: ${patient?.full_name || 'Patient'} with doctor.`,
+        { appointment_id: appointment.id },
+        user.id
       )
 
       if (doctor?.email) {

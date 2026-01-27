@@ -48,12 +48,11 @@ export default function NotificationsPage() {
   }
 
   const handleNotificationClick = (notification: any) => {
-    // Mark as read
     handleMarkAsRead(notification.id)
 
-    // Navigate based on notification type
     if (notification.data) {
-      if (notification.type === 'appointment' && notification.data.appointmentId) {
+      const aptId = notification.data.appointment_id ?? notification.data.appointmentId
+      if (notification.type === 'appointment' && aptId) {
         router.push(`/patient/appointments`)
       } else if (notification.type === 'prescription' && notification.data.prescriptionId) {
         router.push(`/patient/prescriptions`)

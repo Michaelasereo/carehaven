@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -62,6 +62,7 @@ export function BookAppointmentForm() {
   const [chronicConditions, setChronicConditions] = useState<string[]>([])
   const BUFFER_MINUTES = 15 // Buffer time between appointments
   const storageKey = 'carehaven.booking.form'
+  const paymentSubmitGuard = useRef(false)
 
   const {
     register,
@@ -592,6 +593,8 @@ export function BookAppointmentForm() {
 
   // Step 4: Review & Payment
   const onSubmit = async (data: AppointmentFormData) => {
+    if (paymentSubmitGuard.current) return
+    paymentSubmitGuard.current = true
     console.log('📝 Form submitted - onSubmit called')
     console.log('Form data:', data)
     console.log('State values:', {
@@ -603,6 +606,7 @@ export function BookAppointmentForm() {
     })
 
     if (!selectedDoctor || !selectedDate || !selectedTime) {
+      paymentSubmitGuard.current = false
       console.error('❌ Early return: Missing required fields', {
         hasDoctor: !!selectedDoctor,
         hasDate: !!selectedDate,
@@ -615,6 +619,7 @@ export function BookAppointmentForm() {
     if (availability && availability.length > 0) {
       const scheduledDate = new Date(`${selectedDate}T${selectedTime}`)
       if (!isTimeAvailable(scheduledDate, selectedTime, availability)) {
+        paymentSubmitGuard.current = false
         console.error('❌ Early return: Selected time is not available')
         setAvailabilityError('Selected time is not available. Please choose another time.')
         return
@@ -633,6 +638,7 @@ export function BookAppointmentForm() {
       })
 
       if (hasConflict) {
+        paymentSubmitGuard.current = false
         console.error('❌ Early return: Time slot conflict detected')
         setAvailabilityError('This time slot is already booked. Please choose another time.')
         return
@@ -649,6 +655,7 @@ export function BookAppointmentForm() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
+        paymentSubmitGuard.current = false
         console.error('❌ Early return: No authenticated user')
         router.push('/auth/signin')
         return
@@ -700,6 +707,7 @@ export function BookAppointmentForm() {
       }
       window.location.href = paymentData.authorization_url
     } catch (err: unknown) {
+      paymentSubmitGuard.current = false
       const errorMessage = err instanceof Error ? err.message : 'Failed to book appointment. Please try again.'
       addToast({
         variant: 'destructive',
@@ -1090,6 +1098,7 @@ export function BookAppointmentForm() {
                 time={selectedTime}
                 consultationFee={consultationPrice}
                 currency="NGN"
+                durationMinutes={consultationDuration}
               />
             </div>
 

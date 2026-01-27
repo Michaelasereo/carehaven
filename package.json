@@ -39,6 +39,8 @@
     "deploy:netlify:optimized": "npm run build:optimized && NETLIFY_CDN_UPLOAD_CONCURRENCY=2 NETLIFY_CDN_UPLOAD_TIMEOUT=300 NETLIFY_RETRY_COUNT=3 npx netlify-cli deploy --prod --timeout=300",
     "deploy:prod": "npx netlify-cli deploy --prod --timeout=600",
     "deploy:prod:standard": "NETLIFY_SDK_METADATA_URL=\"\" npx netlify-cli deploy --prod --timeout=600",
+    "deploy:prod:manual": "bash scripts/deploy-prod.sh",
+    "deploy:prod:no-plugins": "NETLIFY_USE_PLUGINS=false NETLIFY_RETRY_COUNT=5 NETLIFY_RETRY_TIMEOUT=300000 npx netlify-cli deploy --prod --timeout=600",
     "postinstall": "prisma generate"
   },
   "dependencies": {

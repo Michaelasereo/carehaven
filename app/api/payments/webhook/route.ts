@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 import { createRoom } from '@/lib/daily/client'
 import { getConsultationDuration } from '@/lib/admin/system-settings'
-import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, sendDoctorAppointmentEmail, formatDoctorName } from '@/lib/notifications/triggers'
+import { notifyAppointmentConfirmed, notifyDoctorAppointmentBooked, notifyAdmins, sendDoctorAppointmentEmail, formatDoctorName } from '@/lib/notifications/triggers'
 
 /**
  * Paystack Webhook Handler
@@ -196,6 +196,13 @@ export async function POST(request: Request) {
           appointment.id,
           patient?.full_name || 'Patient',
           new Date(appointment.scheduled_at)
+        )
+
+        await notifyAdmins(
+          'system',
+          'New appointment booked',
+          `A new appointment has been booked (${patient?.full_name || 'Patient'} with doctor).`,
+          { appointment_id: appointment.id }
         )
 
         // Send detailed email to doctor

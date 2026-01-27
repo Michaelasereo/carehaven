@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
-import { AppointmentDetailModal } from './appointment-detail-modal'
 import {
   Table,
   TableBody,
@@ -45,7 +45,6 @@ export function AppointmentListClient({
 }: AppointmentListClientProps) {
   const router = useRouter()
   const [appointments, setAppointments] = useState(initialAppointments)
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -102,8 +101,7 @@ export function AppointmentListClient({
   }
 
   return (
-    <>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <Card>
           <Table>
             <TableHeader>
@@ -157,14 +155,14 @@ export function AppointmentListClient({
                     <TableCell>
                       <Badge
                         variant={
-                          appointment.payment_status === 'paid'
+                          appointment.payment_status === 'paid' || appointment.payment_status === 'waived'
                             ? 'default'
                             : appointment.payment_status === 'failed'
                             ? 'destructive'
                             : 'secondary'
                         }
                       >
-                        {appointment.payment_status}
+                        {appointment.payment_status === 'waived' ? 'Waived' : appointment.payment_status}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -173,13 +171,11 @@ export function AppointmentListClient({
                         : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedAppointmentId(appointment.id)}
-                      >
-                        View Details
-                      </Button>
+                      <Link href={`/admin/appointments/${appointment.id}`}>
+                        <Button variant="outline" size="sm">
+                          View Details
+                        </Button>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 )
@@ -216,13 +212,6 @@ export function AppointmentListClient({
             </div>
           </div>
         )}
-      </div>
-
-      <AppointmentDetailModal
-        appointmentId={selectedAppointmentId}
-        isOpen={!!selectedAppointmentId}
-        onClose={() => setSelectedAppointmentId(null)}
-      />
-    </>
+    </div>
   )
 }

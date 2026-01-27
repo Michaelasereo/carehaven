@@ -48,6 +48,7 @@ describe('POST /api/notifications/create', () => {
   it('creates notification', async () => {
     const request = new Request('http://localhost/api/notifications/create', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: 'test-user-id',
         type: 'appointment',
@@ -56,8 +57,8 @@ describe('POST /api/notifications/create', () => {
       }),
     })
     const response = await POST(request)
-    const data = await response.json()
     expect(response.status).toBe(200)
+    const data = await response.json()
     expect(data.success).toBe(true)
   })
 })

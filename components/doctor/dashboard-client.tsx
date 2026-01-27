@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, Bell, Pill, TestTube, Video } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { formatLagosTime, nowUTCForUpcomingFilter } from '@/lib/utils/timezone'
 import { JoinConsultationButton } from './join-consultation-button'
 
 interface DoctorDashboardClientProps {
@@ -34,7 +35,7 @@ export function DoctorDashboardClient({
         .eq('doctor_id', doctorId)
         .in('payment_status', ['paid', 'waived'])
         .in('status', ['scheduled', 'confirmed', 'in_progress'])
-        .gte('scheduled_at', new Date().toISOString())
+        .gte('scheduled_at', nowUTCForUpcomingFilter())
         .order('scheduled_at', { ascending: true })
         .limit(3)
 
@@ -147,8 +148,18 @@ export function DoctorDashboardClient({
         <div className="space-y-2 md:space-y-3">
           {upcomingAppointments.length > 0 ? (
             upcomingAppointments.map((apt) => {
-              const scheduledAt = new Date(apt.scheduled_at)
-              const paymentLabel = apt.payment_status === 'waived' ? 'Waived' : 'Paid'
+              const paymentStatusMap: Record<string, string> = {
+                'paid': 'Paid',
+                'waived': 'Waived',
+                'pending': 'Pending',
+                'failed': 'Failed',
+                'refunded': 'Refunded',
+              }
+              const paymentLabel = paymentStatusMap[apt.payment_status] || 'Unknown'
+              const paymentBadgeVariant = 
+                ['paid', 'waived'].includes(apt.payment_status) ? 'default' :
+                apt.payment_status === 'pending' ? 'secondary' :
+                'destructive'
               const showJoin = ['scheduled', 'confirmed', 'in_progress'].includes(apt.status)
               
               return (
@@ -160,7 +171,7 @@ export function DoctorDashboardClient({
                     <p className="font-medium text-sm md:text-base truncate">{apt.profiles?.full_name || 'Patient'}</p>
                     <div className="flex items-center gap-2 mt-1 text-xs md:text-sm text-gray-600">
                       <Clock className="h-3 w-3 flex-shrink-0" />
-                      <span>{format(scheduledAt, 'MMM d, h:mm a')}</span>
+                      <span>{formatLagosTime(apt.scheduled_at, 'short')}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
@@ -168,7 +179,7 @@ export function DoctorDashboardClient({
                       {apt.status}
                     </Badge>
                     {['scheduled', 'confirmed', 'in_progress'].includes(apt.status) && (
-                      <Badge variant="default" className="text-xs">
+                      <Badge variant={paymentBadgeVariant} className="text-xs">
                         {paymentLabel}
                       </Badge>
                     )}

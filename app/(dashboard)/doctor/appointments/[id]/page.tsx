@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, User, Video, FileText, Pill, TestTube } from 'lucide-react'
 import { format } from 'date-fns'
+import { formatLagosTime } from '@/lib/utils/timezone'
 import Link from 'next/link'
 import { JoinConsultationButton } from '@/components/doctor/join-consultation-button'
 import { CreatePrescriptionButton } from '@/components/doctor/create-prescription-button'
@@ -81,7 +82,23 @@ export default async function AppointmentDetailsPage({
   const scheduledAt = new Date(appointment.scheduled_at)
   const endTime = new Date(scheduledAt.getTime() + (appointment.duration_minutes || 45) * 60000)
   const showJoin = ['scheduled', 'confirmed', 'in_progress'].includes(appointment.status)
-  const paymentLabel = appointment.payment_status === 'waived' ? 'Waived' : 'Paid'
+  const dateLabel = formatLagosTime(appointment.scheduled_at, 'date')
+  const timeLabel = `${formatLagosTime(appointment.scheduled_at, 'time')} – ${formatLagosTime(endTime, 'time')}`
+  
+  // Payment status display
+  const paymentStatusMap: Record<string, string> = {
+    'paid': 'Paid',
+    'waived': 'Waived',
+    'pending': 'Pending',
+    'failed': 'Failed',
+    'refunded': 'Refunded',
+  }
+  const paymentLabel = paymentStatusMap[appointment.payment_status] || 'Unknown'
+  const paymentBadgeVariant = 
+    ['paid', 'waived'].includes(appointment.payment_status) ? 'default' :
+    appointment.payment_status === 'pending' ? 'secondary' :
+    'destructive'
+  
   const isCompleted = appointment.status === 'completed'
 
   return (
@@ -103,7 +120,7 @@ export default async function AppointmentDetailsPage({
             {appointment.status}
           </Badge>
           {showJoin && (
-            <Badge variant="default">{paymentLabel}</Badge>
+            <Badge variant={paymentBadgeVariant}>{paymentLabel}</Badge>
           )}
           {showJoin && (
             <JoinConsultationButton appointmentId={appointment.id} />
@@ -178,13 +195,13 @@ export default async function AppointmentDetailsPage({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-600">Scheduled Date</p>
-            <p className="font-medium">{format(scheduledAt, 'MMM d, yyyy')}</p>
+            <p className="font-medium">{dateLabel}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Time</p>
             <p className="font-medium flex items-center gap-1">
               <Clock className="h-4 w-4" />
-              {format(scheduledAt, 'h:mm a')} - {format(endTime, 'h:mm a')}
+              {timeLabel}
             </p>
           </div>
           <div>
@@ -193,7 +210,7 @@ export default async function AppointmentDetailsPage({
           </div>
           <div>
             <p className="text-sm text-gray-600">Payment Status</p>
-            <Badge variant="default">{paymentLabel}</Badge>
+            <Badge variant={paymentBadgeVariant}>{paymentLabel}</Badge>
           </div>
         </div>
         {appointment.symptoms_description && (

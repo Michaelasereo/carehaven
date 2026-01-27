@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PatientDemographics } from '@/components/dashboard/patient-demographics'
-import { AppointmentCard } from '@/components/patient/appointment-card'
+import { AppointmentsListClient } from '@/components/patient/appointments-list-client'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Calendar } from 'lucide-react'
@@ -51,15 +51,10 @@ export default async function AppointmentsPage() {
         />
       )}
 
-      <div className="grid gap-4">
-        {appointments && appointments.length > 0 ? (
-          appointments.map((appointment: any) => (
-            <AppointmentCard key={appointment.id} appointment={appointment} />
-          ))
-        ) : (
-          <p className="text-gray-500 text-center py-8">No appointments found</p>
-        )}
-      </div>
+      <AppointmentsListClient
+        patientId={user.id}
+        initialAppointments={appointments || []}
+      />
     </div>
   )
 }

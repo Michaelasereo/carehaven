@@ -62,21 +62,60 @@ export function AppointmentListClient({
           schema: 'public',
           table: 'appointments',
         },
-        (payload) => {
-          // Update the appointment in the list
-          setAppointments((prev) => {
-            if (!payload.new || typeof payload.new !== 'object' || !('id' in payload.new)) {
-              return prev
-            }
+        async (payload) => {
+          // Handle INSERT events - fetch full appointment with joins
+          if (payload.eventType === 'INSERT') {
             const newAppointment = payload.new as any
-            const index = prev.findIndex((apt) => apt.id === newAppointment.id)
-            if (index >= 0) {
-              const updated = [...prev]
-              updated[index] = newAppointment as Appointment
-              return updated
+            // Only add if it matches current filters (paid/waived)
+            if (['paid', 'waived'].includes(newAppointment.payment_status)) {
+              const { data: fullAppointment } = await supabase
+                .from('appointments')
+                .select('*, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name, email, specialty)')
+                .eq('id', newAppointment.id)
+                .single()
+              
+              if (fullAppointment) {
+                setAppointments((prev) => {
+                  // Check if already exists (avoid duplicates)
+                  if (prev.find((apt) => apt.id === fullAppointment.id)) {
+                    return prev
+                  }
+                  // Add to beginning of list (newest first)
+                  return [fullAppointment as Appointment, ...prev]
+                })
+              }
             }
-            return prev
-          })
+            return
+          }
+
+          // Handle UPDATE events - update existing appointment
+          if (payload.eventType === 'UPDATE') {
+            setAppointments((prev) => {
+              if (!payload.new || typeof payload.new !== 'object' || !('id' in payload.new)) {
+                return prev
+              }
+              const updatedAppointment = payload.new as any
+              const index = prev.findIndex((apt) => apt.id === updatedAppointment.id)
+              if (index >= 0) {
+                const updated = [...prev]
+                // Merge with existing to preserve patient/doctor data
+                updated[index] = { ...updated[index], ...updatedAppointment } as Appointment
+                return updated
+              }
+              return prev
+            })
+            return
+          }
+
+          // Handle DELETE events - remove from list
+          if (payload.eventType === 'DELETE') {
+            setAppointments((prev) => {
+              if (!payload.old || typeof payload.old !== 'object' || !('id' in payload.old)) {
+                return prev
+              }
+              return prev.filter((apt) => apt.id !== (payload.old as any).id)
+            })
+          }
         }
       )
       .subscribe()

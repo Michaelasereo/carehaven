@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowRight, Calendar, Clock, RotateCcw, X } from 'lucide-react'
-import { format } from 'date-fns'
+import { formatLagosTime } from '@/lib/utils/timezone'
 import { RescheduleAppointmentDialog } from './reschedule-appointment-dialog'
 import { JoinConsultationButton } from './join-consultation-button'
 import { CancelAppointmentDialog } from './cancel-appointment-dialog'
@@ -33,7 +33,20 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
                     new Date(appointment.scheduled_at) > new Date()
   const isUpcoming = new Date(appointment.scheduled_at) > new Date()
   const showJoin = ['scheduled', 'confirmed', 'in_progress'].includes(appointment.status) && isUpcoming
-  const paymentLabel = appointment.payment_status === 'waived' ? 'Waived' : 'Paid'
+  
+  // Payment status display
+  const paymentStatusMap: Record<string, string> = {
+    'paid': 'Paid',
+    'waived': 'Waived',
+    'pending': 'Pending',
+    'failed': 'Failed',
+    'refunded': 'Refunded',
+  }
+  const paymentLabel = paymentStatusMap[appointment.payment_status] || 'Unknown'
+  const paymentBadgeVariant = 
+    ['paid', 'waived'].includes(appointment.payment_status) ? 'default' :
+    appointment.payment_status === 'pending' ? 'secondary' :
+    'destructive'
 
   return (
     <>
@@ -46,7 +59,7 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
                 {appointment.status}
               </Badge>
               {['scheduled', 'confirmed', 'in_progress'].includes(appointment.status) && (
-                <Badge variant="default" className="text-xs whitespace-nowrap">
+                <Badge variant={paymentBadgeVariant} className="text-xs whitespace-nowrap">
                   {paymentLabel}
                 </Badge>
               )}
@@ -54,11 +67,11 @@ export function AppointmentCard({ appointment, showActions = true }: Appointment
             <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-gray-600 mt-1">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
-                <span>{format(startTime, 'MMM d, yyyy')}</span>
+                <span>{formatLagosTime(appointment.scheduled_at, 'date')}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
-                <span>{format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}</span>
+                <span>{formatLagosTime(appointment.scheduled_at, 'time')} – {formatLagosTime(endTime, 'time')}</span>
               </div>
             </div>
             {appointment.chief_complaint && (

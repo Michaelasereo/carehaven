@@ -127,6 +127,7 @@ export default async function DoctorAppointmentsPage({
         currentPage={page}
         totalPages={totalPages}
         searchParams={searchParams}
+        doctorId={user.id}
       />
     </div>
   )

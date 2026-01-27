@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
+import { formatLagosTime } from '@/lib/utils/timezone'
 import { Calendar, Clock, ChevronLeft, ChevronRight, Video, Eye } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -34,6 +35,7 @@ interface AppointmentListClientProps {
   currentPage: number
   totalPages: number
   searchParams: Record<string, string | undefined>
+  doctorId: string
 }
 
 export function AppointmentListClient({
@@ -41,6 +43,7 @@ export function AppointmentListClient({
   currentPage,
   totalPages,
   searchParams,
+  doctorId,
 }: AppointmentListClientProps) {
   const router = useRouter()
   const [appointments, setAppointments] = useState(initialAppointments)
@@ -57,21 +60,60 @@ export function AppointmentListClient({
           schema: 'public',
           table: 'appointments',
         },
-        (payload) => {
-          // Update the appointment in the list
-          setAppointments((prev) => {
-            if (!payload.new || typeof payload.new !== 'object' || !('id' in payload.new)) {
-              return prev
-            }
+        async (payload) => {
+          // Handle INSERT events - fetch full appointment with joins
+          if (payload.eventType === 'INSERT') {
             const newAppointment = payload.new as any
-            const index = prev.findIndex((apt) => apt.id === newAppointment.id)
-            if (index >= 0) {
-              const updated = [...prev]
-              updated[index] = newAppointment as Appointment
-              return updated
+            // Only add if it matches current filters (paid/waived and belongs to this doctor)
+            if (newAppointment.doctor_id === doctorId && ['paid', 'waived'].includes(newAppointment.payment_status)) {
+              const { data: fullAppointment } = await supabase
+                .from('appointments')
+                .select('*, patient:profiles!appointments_patient_id_fkey(full_name, email)')
+                .eq('id', newAppointment.id)
+                .single()
+              
+              if (fullAppointment) {
+                setAppointments((prev) => {
+                  // Check if already exists (avoid duplicates)
+                  if (prev.find((apt) => apt.id === fullAppointment.id)) {
+                    return prev
+                  }
+                  // Add to beginning of list (newest first)
+                  return [fullAppointment as Appointment, ...prev]
+                })
+              }
             }
-            return prev
-          })
+            return
+          }
+
+          // Handle UPDATE events - update existing appointment
+          if (payload.eventType === 'UPDATE') {
+            setAppointments((prev) => {
+              if (!payload.new || typeof payload.new !== 'object' || !('id' in payload.new)) {
+                return prev
+              }
+              const updatedAppointment = payload.new as any
+              const index = prev.findIndex((apt) => apt.id === updatedAppointment.id)
+              if (index >= 0) {
+                const updated = [...prev]
+                // Merge with existing to preserve patient data
+                updated[index] = { ...updated[index], ...updatedAppointment } as Appointment
+                return updated
+              }
+              return prev
+            })
+            return
+          }
+
+          // Handle DELETE events - remove from list
+          if (payload.eventType === 'DELETE') {
+            setAppointments((prev) => {
+              if (!payload.old || typeof payload.old !== 'object' || !('id' in payload.old)) {
+                return prev
+              }
+              return prev.filter((apt) => apt.id !== (payload.old as any).id)
+            })
+          }
         }
       )
       .subscribe()
@@ -123,9 +165,9 @@ export function AppointmentListClient({
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
                       <div>
-                        <p className="font-medium">{format(scheduledAt, 'MMM d, yyyy')}</p>
+                        <p className="font-medium">{formatLagosTime(appointment.scheduled_at, 'date')}</p>
                         <p className="text-sm text-gray-500">
-                          {format(scheduledAt, 'h:mm a')} - {format(endTime, 'h:mm a')}
+                          {formatLagosTime(appointment.scheduled_at, 'time')} – {formatLagosTime(endTime, 'time')}
                         </p>
                       </div>
                     </div>

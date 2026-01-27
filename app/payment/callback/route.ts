@@ -95,7 +95,7 @@ export async function GET(request: Request) {
 
     // Validate payment amount matches appointment amount
     const paymentAmount = payment.data.amount // Amount in kobo from Paystack
-    const appointmentAmount = Math.round((Number(appointment.amount) || 0) * 100) // Convert to kobo
+    const appointmentAmount = Math.round(Number(appointment.amount) || 0) // Amount is already stored in kobo
 
     if (paymentAmount !== appointmentAmount) {
       console.error(`❌ Payment amount mismatch: expected ${appointmentAmount}, got ${paymentAmount}`)

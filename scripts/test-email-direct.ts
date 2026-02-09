@@ -22,7 +22,7 @@ async function testDirectEmail() {
 
   console.log(`✅ Brevo API Key found: ${BREVO_API_KEY.substring(0, 10)}...`)
   console.log(`📧 Sending test email to: ${testEmail}`)
-  console.log(`📤 From: mycarehaven@gmail.com\n`)
+  console.log(`📤 From: noreply@your-domain.com\n`)
 
   try {
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -35,7 +35,7 @@ async function testDirectEmail() {
       body: JSON.stringify({
         sender: {
           name: 'Care Haven',
-          email: 'mycarehaven@gmail.com',
+          email: 'noreply@your-domain.com',
         },
         to: [
           {
@@ -61,7 +61,7 @@ async function testDirectEmail() {
                 <p>If you received this email, it means:</p>
                 <ul>
                   <li>✅ Brevo API key is configured correctly</li>
-                  <li>✅ Sender email (mycarehaven@gmail.com) is verified in Brevo</li>
+                  <li>✅ Sender email (noreply@your-domain.com) is verified in Brevo</li>
                   <li>✅ Email sending is working!</li>
                 </ul>
                 <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">

@@ -59,7 +59,6 @@ export function MetricsCard({
       return
     }
 
-    // Helper function to build and execute query
     const executeQuery = async (useDynamicDateRange = false) => {
       if (realtimeTable !== 'appointments') return null
 
@@ -172,8 +171,6 @@ export function MetricsCard({
     let isSubscribed = false
 
     const setupSubscription = () => {
-      // Build filter string for postgres_changes - use doctor_id as primary filter
-      // This ensures we catch all appointment changes for this doctor, including status transitions
       let filterString: string | undefined = undefined
       if (realtimeFilter && realtimeFilter.doctor_id) {
         // Always filter by doctor_id to catch all relevant changes

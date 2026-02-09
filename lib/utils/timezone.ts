@@ -121,3 +121,65 @@ export function getLagosTimezoneOffset(): number {
 export function formatLagosTimeWithSuffix(date: Date | string): string {
   return `${formatLagosTime(date, 'time')} WAT`
 }
+
+/** WAT offset for ISO strings: +01:00 */
+const WAT_OFFSET = '+01:00'
+
+/**
+ * Start of day in WAT for date YYYY-MM-DD, as UTC Date.
+ * Use for Supabase gte queries when filtering by "day in Lagos".
+ */
+export function startOfDayWAT(date: string): Date {
+  return new Date(`${date}T00:00:00.000${WAT_OFFSET}`)
+}
+
+/**
+ * End of day in WAT for date YYYY-MM-DD, as UTC Date.
+ * Use for Supabase lte queries when filtering by "day in Lagos".
+ */
+export function endOfDayWAT(date: string): Date {
+  return new Date(`${date}T23:59:59.999${WAT_OFFSET}`)
+}
+
+/**
+ * True if scheduledAt (ISO UTC from DB) is in the future relative to now.
+ * Used for upcoming filters; comparisons are instant-based so timezone-agnostic.
+ */
+export function isUpcomingInWAT(scheduledAt: string): boolean {
+  return new Date(scheduledAt) > new Date()
+}
+
+/**
+ * Current moment as ISO UTC. Use for scheduled_at >= X in upcoming queries.
+ * Keeps threshold consistent; storage and display use WAT where appropriate.
+ */
+export function nowUTCForUpcomingFilter(): string {
+  return new Date().toISOString()
+}
+
+/** Match YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss without Z or offset */
+const WAT_LOCAL_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/
+
+export function isWATLocalForm(dateTime: string): boolean {
+  return WAT_LOCAL_REGEX.test(dateTime.trim())
+}
+
+/**
+ * Parse "YYYY-MM-DDTHH:mm" (or with :ss) as WAT, return UTC Date.
+ * Use for incoming scheduled_at from booking form. Other formats fall back to new Date(s).
+ */
+export function parseAsWAT(dateTimeLocal: string): Date {
+  const s = dateTimeLocal.trim()
+  if (WAT_LOCAL_REGEX.test(s)) {
+    const normalized = s.length === 16 ? `${s}:00` : s
+    return new Date(`${normalized}.000${WAT_OFFSET}`)
+  }
+  return new Date(s)
+}
+
+/**
+ * Noon on the given YYYY-MM-DD in WAT, as Date. Use for day-of-week in WAT (getDay()).
+ */
+export function dateAtNoonWAT(dateYYYYMMDD: string): Date {
+  return new Date(`${dateYYYYMMDD}T12:00:00.000${WAT_OFFSET}`)
+}

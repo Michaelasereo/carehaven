@@ -28,7 +28,7 @@ BREVO_API_KEY=your_brevo_api_key_here
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-NEXT_PUBLIC_APP_URL=https://carehaven.app
+NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
 
 ## Verify Email Configuration
@@ -37,7 +37,7 @@ After setting environment variables, test your email configuration:
 
 ### Option 1: Use Debug Endpoint
 
-Visit: `https://carehaven.app/api/debug/email-config`
+Visit: `https://your-domain.com/api/debug/email-config`
 
 This will show you:
 - Whether BREVO_API_KEY is configured
@@ -57,15 +57,15 @@ Common errors:
 
 ## Sender Email Verification
 
-The sender email `mycarehaven@carehaven.app` **MUST** be verified in Brevo:
+The sender email `noreply@your-domain.com` **MUST** be verified in Brevo:
 
 1. Go to [Brevo Dashboard](https://app.brevo.com/)
 2. Navigate to **Settings** → **Senders** → **SMTP & API**
-3. Verify that `mycarehaven@carehaven.app` is listed and verified
+3. Verify that `noreply@your-domain.com` is listed and verified
 4. If not verified, click "Verify" and follow the instructions
 
 **Alternative:** If you need to use a different sender email, update it in:
-- `lib/email/client.ts` (line 39): Change `email: 'mycarehaven@carehaven.app'`
+- Set `BREVO_SENDER_EMAIL` in env or leave default in `lib/email/client.ts`
 
 ## Step-by-Step Fix
 
@@ -105,7 +105,7 @@ The sender email `mycarehaven@carehaven.app` **MUST** be verified in Brevo:
 
 ### Error: "Sender email not verified"
 **Solution:** 
-- Verify `mycarehaven@carehaven.app` in Brevo Dashboard
+- Verify `noreply@your-domain.com` in Brevo Dashboard
 - Or change the sender email to a verified one in `lib/email/client.ts`
 
 ### Emails not received
@@ -121,7 +121,7 @@ After setting up environment variables, you can test the email configuration:
 
 ```bash
 # Visit this URL in your browser (production):
-https://carehaven.app/api/debug/email-config
+https://your-domain.com/api/debug/email-config
 
 # Should return:
 {
@@ -130,7 +130,7 @@ https://carehaven.app/api/debug/email-config
     "brevoApiKeyConfigured": true,
     "brevoApiKeyLength": 70,  // or similar
     "brevoApiKeyPrefix": "xkeysib-...",
-    "appUrl": "https://carehaven.app"
+    "appUrl": "https://your-domain.com"
   }
 }
 ```

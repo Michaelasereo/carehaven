@@ -28,7 +28,7 @@ This document outlines the complete Paystack payment integration and redirect fl
 
 ```typescript
 export async function initializePayment(amount: number, email: string, reference: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
   const callbackUrl = `${appUrl}/payment/callback`
   
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -119,7 +119,7 @@ if (paymentData.authorization_url) {
 ```typescript
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
-  const origin = requestUrl.origin  // e.g., "https://carehaven.app"
+  const origin = requestUrl.origin  // e.g., "https://your-domain.com"
   const reference = searchParams.get('reference')
   const error = searchParams.get('error')
 
@@ -221,7 +221,7 @@ The browser gets stuck in a redirect loop when Paystack redirects back to `/paym
 ### Current Implementation
 ```typescript
 const requestUrl = new URL(request.url)
-const origin = requestUrl.origin  // e.g., "https://carehaven.app"
+const origin = requestUrl.origin  // e.g., "https://your-domain.com"
 return NextResponse.redirect(
   new URL('/patient/appointments?success=payment_complete&appointment_id=${id}', origin)
 )
@@ -242,7 +242,7 @@ return NextResponse.redirect(
 
 ```env
 PAYSTACK_SECRET_KEY=sk_live_xxxxx  # or sk_test_xxxxx for testing
-NEXT_PUBLIC_APP_URL=https://carehaven.app  # Used for callback URL
+NEXT_PUBLIC_APP_URL=https://your-domain.com  # Used for callback URL
 ```
 
 **Callback & webhook URLs (per environment):**
@@ -254,9 +254,9 @@ NEXT_PUBLIC_APP_URL=https://carehaven.app  # Used for callback URL
 
 ## Redirect Flow Details
 
-1. **Paystack redirects to:** `https://carehaven.app/payment/callback?reference=appt_xxx_1234567890`
+1. **Paystack redirects to:** `https://your-domain.com/payment/callback?reference=appt_xxx_1234567890`
 2. **Callback handler processes payment**
-3. **Callback redirects to:** `https://carehaven.app/patient/appointments?success=payment_complete&appointment_id=xxx`
+3. **Callback redirects to:** `https://your-domain.com/patient/appointments?success=payment_complete&appointment_id=xxx`
 4. **Issue:** Browser gets stuck, possibly due to:
    - URL construction using `origin` instead of full `request.url`
    - Middleware interference
@@ -315,7 +315,7 @@ Document in PRD or product docs as needed. Cancel dialog and API enforce this po
 
 ## Next Steps to Fix Redirect
 
-1. Try using absolute URL string: `NextResponse.redirect('https://carehaven.app/patient/appointments?...')`
+1. Try using absolute URL string: `NextResponse.redirect('https://your-domain.com/patient/appointments?...')`
 2. Check if middleware is interfering with redirects
 3. Add logging to see what URL is being constructed
 4. Consider using `getBaseUrl()` utility (already exists in `lib/utils/url.ts`)

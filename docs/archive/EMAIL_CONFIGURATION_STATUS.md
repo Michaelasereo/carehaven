@@ -6,7 +6,7 @@ All required environment variables are now configured:
 
 ### Email Service
 - ✅ **BREVO_API_KEY**: Set (configured for all contexts)
-- ✅ **NEXT_PUBLIC_APP_URL**: Set to `https://carehaven.app`
+- ✅ **NEXT_PUBLIC_APP_URL**: Set to `https://your-domain.com`
 
 ### Database & Auth
 - ✅ **NEXT_PUBLIC_SUPABASE_URL**: Set
@@ -21,17 +21,17 @@ All required environment variables are now configured:
 ## Current Configuration
 
 ### Sender Email
-- **Email**: `mycarehaven@carehaven.app`
+- **Email**: `noreply@your-domain.com`
 - **Name**: `Michael from Carehaven`
 - **Location**: `lib/email/client.ts` (line 38-39)
 
 ### Important: Verify Sender Email in Brevo
 
-⚠️ **CRITICAL**: The sender email `mycarehaven@carehaven.app` **MUST** be verified in Brevo:
+⚠️ **CRITICAL**: The sender email `noreply@your-domain.com` **MUST** be verified in Brevo:
 
 1. Go to [Brevo Dashboard](https://app.brevo.com/)
 2. Navigate to **Settings** → **Senders** → **SMTP & API**
-3. Verify that `mycarehaven@carehaven.app` is listed and **verified**
+3. Verify that `noreply@your-domain.com` is listed and **verified**
 4. If not verified:
    - Click **"Add a sender"** or **"Verify"** next to the email
    - Follow the verification steps (usually email confirmation)
@@ -44,7 +44,7 @@ All required environment variables are now configured:
 ## Testing Email Configuration
 
 ### Option 1: Debug Endpoint
-Visit: `https://carehaven.app/api/debug/email-config`
+Visit: `https://your-domain.com/api/debug/email-config`
 
 Should return:
 ```json
@@ -54,7 +54,7 @@ Should return:
     "brevoApiKeyConfigured": true,
     "brevoApiKeyLength": 70,
     "brevoApiKeyPrefix": "xkeysib-...",
-    "appUrl": "https://carehaven.app"
+    "appUrl": "https://your-domain.com"
   }
 }
 ```
@@ -96,6 +96,6 @@ Should return:
 
 ## Still Need to Do
 
-- ⚠️ **Verify sender email** (`mycarehaven@carehaven.app`) in Brevo Dashboard
+- ⚠️ **Verify sender email** (`noreply@your-domain.com`) in Brevo Dashboard
 - 🔄 **Redeploy** if you just added NEXT_PUBLIC_APP_URL (new env vars need redeploy)
 - 🧪 **Test** the email flow after redeploy

@@ -75,8 +75,6 @@ function VerifyEmailContent() {
       const isAdmin = searchParams.get('admin') === 'true'
       const redirectPath = result.redirectPath || (isAdmin ? '/admin/dashboard' : '/patient')
       
-      // SIMPLIFIED FLOW: Check if user already has a session (they should from signin form)
-      // This is the primary path - user signed in, then verified code, session should exist
       const { data: { session: currentSession } } = await supabase.auth.getSession()
       
       if (currentSession) {
@@ -95,8 +93,6 @@ function VerifyEmailContent() {
         return
       }
 
-      // Fallback: Redirect to login with verified flag
-      // This happens if session expired during verification
       console.warn('⚠️ No session, redirecting to login with verified flag')
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('postVerifyRedirect', redirectPath)
@@ -132,8 +128,6 @@ function VerifyEmailContent() {
       if (user) {
         userId = user.id
       } else {
-        // If no session, try to find user by email via API
-        // This handles cases where session expired but user exists
         try {
           const userResponse = await fetch(`/api/auth/get-user-by-email?email=${encodeURIComponent(email)}`)
           if (userResponse.ok) {

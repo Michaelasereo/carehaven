@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { startOfDayWAT, endOfDayWAT } from '@/lib/utils/timezone'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
@@ -40,8 +41,8 @@ export async function GET(
       auth: { persistSession: false },
     })
 
-    const startOfDay = new Date(`${date}T00:00:00`)
-    const endOfDay = new Date(`${date}T23:59:59`)
+    const startOfDay = startOfDayWAT(date)
+    const endOfDay = endOfDayWAT(date)
 
     let query = supabase
       .from('appointments')

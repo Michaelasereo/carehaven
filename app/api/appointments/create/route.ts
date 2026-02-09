@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isTimeAvailable, type AvailabilitySlot } from '@/lib/utils/availability'
+import { parseAsWAT, dateAtNoonWAT, isWATLocalForm } from '@/lib/utils/timezone'
 
 /**
  * Server-side appointment creation endpoint with availability validation
@@ -50,9 +51,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Use server-authenticated user ID (ignore client-supplied patient_id for security)
-    // This avoids session mismatch issues between client localStorage and server cookies
-    // and is more secure (don't trust client-supplied user IDs)
     const validatedPatientId = user.id
     
     // Log if client-supplied patient_id differs (for debugging session issues)
@@ -62,7 +60,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const scheduledDate = new Date(scheduled_at)
+    const scheduledDate = parseAsWAT(scheduled_at)
 
     // Fetch doctor availability
     const { data: availability, error: availabilityError } = await supabase
@@ -88,10 +86,15 @@ export async function POST(request: Request) {
         active: slot.active,
       }))
 
-      // Extract time from scheduled_at (ISO string)
-      const timeString = scheduledDate.toTimeString().slice(0, 5) // HH:MM format
+      const datePart = scheduled_at.slice(0, 10)
+      const timeString = isWATLocalForm(scheduled_at)
+        ? scheduled_at.slice(11, 16)
+        : scheduledDate.toTimeString().slice(0, 5)
+      const dateForDay = isWATLocalForm(scheduled_at)
+        ? dateAtNoonWAT(datePart)
+        : scheduledDate
 
-      if (!isTimeAvailable(scheduledDate, timeString, availabilitySlots)) {
+      if (!isTimeAvailable(dateForDay, timeString, availabilitySlots)) {
         return NextResponse.json(
           { error: 'Selected time is not available. Please choose another time.' },
           { status: 400 }

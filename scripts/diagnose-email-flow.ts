@@ -131,8 +131,8 @@ async function diagnoseEmailFlow() {
 
   // Step 4: Check email in Brevo dashboard
   console.log('\nStep 4: Brevo sender email verification...')
-  console.log('   Sender: Michael from Carehaven <mycarehaven@carehaven.app>')
-  console.log('   ✅ Domain carehaven.app is authenticated in Brevo')
+  console.log('   Sender: Michael from Carehaven <noreply@your-domain.com>')
+  console.log('   ✅ Domain your-domain.com is authenticated in Brevo')
   console.log('   ✅ Sender email is verified and ready to use\n')
 
   // Step 5: Check database table

@@ -8,6 +8,7 @@ import {
   calculateTrend, 
   getUniquePatients
 } from '@/lib/doctor/analytics'
+import { nowUTCForUpcomingFilter } from '@/lib/utils/timezone'
 import { subDays, format } from 'date-fns'
 import Link from 'next/link'
 
@@ -56,8 +57,8 @@ export default async function DoctorDashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('doctor_id', user.id)
       .in('payment_status', ['paid', 'waived'])
-      .in('status', ['scheduled', 'confirmed'])
-      .gte('scheduled_at', new Date().toISOString()),
+      .in('status', ['scheduled', 'confirmed', 'in_progress'])
+      .gte('scheduled_at', nowUTCForUpcomingFilter()),
     // Previous period for trends
     supabase
       .from('appointments')
@@ -93,10 +94,17 @@ export default async function DoctorDashboardPage() {
   const totalPatients = await getUniquePatients(user.id)
 
   if ((upcomingAppointments ?? 0) === 0) {
+    const { data: debugRows } = await supabase
+      .from('appointments')
+      .select('id, scheduled_at, status, payment_status')
+      .eq('doctor_id', user.id)
+      .order('scheduled_at', { ascending: false })
+      .limit(10)
     console.log('[DoctorDashboard] Zero upcoming appointments', {
       doctor_id: user.id,
-      filters: { status: ['scheduled', 'confirmed'], scheduled_at_gte: new Date().toISOString() },
+      filters: { status: ['scheduled', 'confirmed', 'in_progress'], scheduled_at_gte: nowUTCForUpcomingFilter() },
       count: upcomingAppointments ?? 0,
+      sample: debugRows?.map((r) => ({ id: r.id, scheduled_at: r.scheduled_at, status: r.status, payment_status: r.payment_status })),
     })
   }
 
@@ -139,8 +147,8 @@ export default async function DoctorDashboardPage() {
       realtimeFilter: { doctor_id: user.id },
       realtimeQueryType: 'count' as const,
       realtimeQueryConfig: {
-        statusFilter: ['scheduled', 'confirmed'],
-        dateFilter: { gte: new Date().toISOString() },
+        statusFilter: ['scheduled', 'confirmed', 'in_progress'],
+        dateFilter: { gte: nowUTCForUpcomingFilter() },
       },
     },
     {

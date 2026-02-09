@@ -115,9 +115,6 @@ async function createAutoSigninToken(userId: string, email: string): Promise<str
     console.log(`   Email: ${normalizedEmail}`)
     console.log(`   Expires: ${new Date(expiresAt).toISOString()}`)
 
-    // Additional verification: Query back to ensure token exists
-    // This handles eventual consistency issues in distributed systems
-    // Use retry logic with exponential backoff
     let verified = false
     for (let attempt = 1; attempt <= 3; attempt++) {
       const { data: verifyData, error: verifyError } = await supabase
@@ -149,8 +146,6 @@ async function createAutoSigninToken(userId: string, email: string): Promise<str
     }
 
     if (!verified) {
-      // Still return token as insert succeeded - verification is defensive
-      // The insert returned data, so we trust it
       console.warn('⚠️ Token verification failed but insert succeeded - returning token anyway')
       console.warn('   This may be due to eventual consistency or RLS policy')
     }
@@ -229,7 +224,7 @@ export async function POST(request: Request) {
 
     if (autoSigninToken) {
       // Return auto-signin URL for seamless redirect
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
       const autoSigninUrl = `${appUrl}/api/auth/auto-signin?token=${autoSigninToken}&redirect=${encodeURIComponent(redirectPath)}`
       
       console.log('✅ Auto-signin token created, returning URL')

@@ -16,7 +16,7 @@
 - **Build**: ✅ Passing
 - **Deployment**: ✅ Live on production
 - **Netlify Project**: carehavenapp
-- **Project URL**: https://carehaven.app
+- **Project URL**: https://your-domain.com
 - **Admin URL**: https://app.netlify.com/projects/carehavenapp
 
 ## 🔧 Fixes Applied
@@ -29,7 +29,7 @@
 
 ## 📋 Next Steps
 
-1. **Verify deployment** at https://carehaven.app
+1. **Verify deployment** at https://your-domain.com
 2. **Run tests** locally:
    ```bash
    npm test

@@ -3,7 +3,7 @@
 import { Calendar, Clock, User, CreditCard } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
-import { format } from 'date-fns'
+import { formatLagosTime } from '@/lib/utils/timezone'
 
 interface OrderSummaryCardProps {
   doctorName: string
@@ -31,8 +31,8 @@ export function OrderSummaryCard({
     if (!date) return 'Not selected'
     if (time) {
       try {
-        const dateTime = new Date(`${date}T${time}`)
-        return format(dateTime, 'EEEE, MMMM d, yyyy') + ' at ' + format(dateTime, 'h:mm a')
+        const dateTime = new Date(`${date}T${time}:00.000+01:00`)
+        return formatLagosTime(dateTime, 'datetime')
       } catch {
         return `${date} at ${time}`
       }
@@ -43,9 +43,9 @@ export function OrderSummaryCard({
   const endTimeLabel = (): string | null => {
     if (!date || !time) return null
     try {
-      const start = new Date(`${date}T${time}`)
+      const start = new Date(`${date}T${time}:00.000+01:00`)
       const end = new Date(start.getTime() + durationMinutes * 60 * 1000)
-      return format(end, 'h:mm a')
+      return formatLagosTime(end, 'time')
     } catch {
       return null
     }

@@ -53,7 +53,7 @@ Teams:
 Current project: carehavenapp
 Netlify TOML:    /Users/macbook/Desktop/carehaven/netlify.toml
 Admin URL:       https://app.netlify.com/projects/carehavenapp
-Project URL:     https://carehaven.app
+Project URL:     https://your-domain.com
 Project Id:      1cb1f8d3-1c01-493b-8ab2-862e2e859430
 
 \033[0;32m✅ Netlify CLI is authenticated\033[0m

@@ -455,7 +455,6 @@ export function BookAppointmentForm() {
       })()
     : []
 
-  // Helper function to check if a date falls on a day the doctor is available
   const isDateAvailable = (date: Date) => {
     if (!availability || availability.length === 0) return false
     const dayOfWeek = date.getDay()
@@ -661,7 +660,7 @@ export function BookAppointmentForm() {
         return
       }
 
-      const scheduledAt = new Date(`${selectedDate}T${selectedTime}`).toISOString()
+      const scheduledAtWAT = `${selectedDate}T${selectedTime}`
       const appointmentAmount = consultationPrice
 
       if (pendingAppointmentId) {
@@ -673,7 +672,7 @@ export function BookAppointmentForm() {
           doctor_id: data.doctor_id,
           chief_complaint: data.symptoms_description,
           symptoms_description: data.symptoms_description,
-          scheduled_at: scheduledAt,
+          scheduled_at: scheduledAtWAT,
           duration_minutes: consultationDuration,
           amount: appointmentAmount,
           currency: 'NGN',

@@ -114,8 +114,6 @@ export async function POST(request: Request) {
 
       if (paymentAmount !== appointmentAmount) {
         console.error(`❌ Payment amount mismatch for appointment ${appointment.id}: expected ${appointmentAmount}, got ${paymentAmount}`)
-        // Return 200 to acknowledge but log the error
-        // This prevents Paystack from retrying, but we've logged the issue
         return NextResponse.json({ received: true, error: 'Amount mismatch' }, { status: 200 })
       }
 

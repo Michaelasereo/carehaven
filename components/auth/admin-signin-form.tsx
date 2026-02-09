@@ -119,11 +119,6 @@ export function AdminSignInForm() {
         return
       }
 
-      // Admin credentials are valid - send verification code for 2FA
-      // IMPORTANT: Keep the session active - we'll redirect directly after code verification
-      // The user is already authenticated, we just need to verify their email/2FA
-
-      // Send verification code via Brevo SMTP
       try {
         const response = await fetch('/api/auth/send-verification-code', {
           method: 'POST',

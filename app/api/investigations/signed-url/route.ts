@@ -143,12 +143,7 @@ export async function POST(req: Request) {
               console.warn('[signed-url] Bearer token validation failed', { status: userRes.status })
             }
           } catch (apiError: any) {
-            // If API call times out or fails, log but don't fail completely
-            // The token might still be valid, we'll verify access via investigation lookup
             console.error('[signed-url] Bearer token API validation error:', apiError?.message)
-            
-            // As a last resort, try to decode the JWT token to get user ID
-            // This is less secure but more resilient to network issues
             try {
               const tokenParts = token.split('.')
               if (tokenParts.length === 3) {
@@ -230,8 +225,6 @@ export async function POST(req: Request) {
       }, { status: 403 })
     }
 
-    // Check if file exists in storage before attempting to create signed URL
-    // This provides better error messages and fails fast for test data without files
     console.log('[signed-url] 7 checking file existence', { objectName, investigationId })
     
     const { data: fileList, error: listError } = await admin.storage

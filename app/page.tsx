@@ -99,7 +99,7 @@ export default async function Home() {
             <Link href="/" className="text-gray-700 hover:text-teal-600 transition-colors">Home</Link>
             <Link href="#how-it-works" className="text-gray-700 hover:text-teal-600 transition-colors">How it Works</Link>
             <Link href="#faqs" className="text-gray-700 hover:text-teal-600 transition-colors">FAQs</Link>
-            <a href="mailto:mycarehaven@gmail.com" className="text-gray-700 hover:text-teal-600 transition-colors">Support</a>
+            <a href="mailto:support@your-domain.com" className="text-gray-700 hover:text-teal-600 transition-colors">Support</a>
           </nav>
           <div className="flex items-center gap-2 md:gap-4">
             <Link href="/auth/signin">
@@ -130,7 +130,7 @@ export default async function Home() {
           </Link>
           <p className="mt-4 text-sm md:text-base text-gray-600 px-4">
             Are you a healthcare provider?{' '}
-            <a href="mailto:mycarehaven@gmail.com" className="text-teal-600 hover:underline">
+            <a href="mailto:support@your-domain.com" className="text-teal-600 hover:underline">
               Join our platform→
             </a>
           </p>

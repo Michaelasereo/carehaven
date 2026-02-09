@@ -11,8 +11,6 @@ export function getBaseUrl(request: Request): string {
     return process.env.NEXT_PUBLIC_APP_URL
   }
   
-  // Check x-forwarded-host header (set by Netlify/proxies)
-  // This header contains the original hostname the client requested
   const forwardedHost = request.headers.get('x-forwarded-host')
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
   

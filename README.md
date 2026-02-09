@@ -1,67 +1,43 @@
-# Care Haven - Telemedicine Platform
+# Care Haven
 
-A comprehensive telemedicine platform built with Next.js 15, Supabase, and Daily.co.
+Telemedicine platform: patients book video consultations with doctors, manage prescriptions and investigations, and pay via Paystack. Built for a clean handoff to your own infra.
 
-## Features
+## Tech stack
 
-- Google OAuth authentication
-- Patient and Doctor dashboards
-- Video consultations via Daily.co
-- Appointment booking and management
-- Prescription management
-- Investigation requests
-- Real-time messaging
-- Payment processing with Paystack
-- Email notifications via Resend (with Brevo fallback)
-- SMS notifications via Twilio
+- **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend:** Supabase (PostgreSQL, Auth, Storage, Realtime)
+- **Video:** Daily.co
+- **Payments:** Paystack
+- **Email:** Brevo (or similar)
+- **Deploy:** Netlify
 
-## Tech Stack
+## Getting started
 
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS 4, shadcn/ui
-- **Backend**: Supabase (PostgreSQL, Auth, Storage, Realtime)
-- **Video**: Daily.co (HIPAA-compliant)
-- **Payments**: Paystack
-- **Email**: Resend (primary), Brevo (fallback)
-- **SMS**: Twilio
-- **Deployment**: Netlify
-
-## Getting Started
-
-1. Install dependencies:
 ```bash
 npm install
-```
-
-2. Set up environment variables:
-```bash
 cp .env.example .env.local
-```
-
-3. Run database migrations in Supabase dashboard
-
-4. Run the development server:
-```bash
+# Populate .env.local (see Environment configuration below)
+# Run DB migrations in Supabase (see Database)
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000).
 
-## Environment Variables
+## Environment configuration
 
-See `.env.example` for required environment variables.
+You need your own infrastructure. No shared Supabase URL or keys are provided.
 
-## Database Migrations
+1. **Supabase:** Create a project at [database.new](https://database.new) (or [supabase.com](https://supabase.com)).
+2. **Env vars:** Rename `.env.example` to `.env.local` and fill values from the Supabase Dashboard (Settings > API) and from Paystack, Daily.co, and your email provider.
+3. **Database:** Run the SQL migrations in `supabase/migrations/` in filename order to create tables and RLS. For schema and policy details, see [docs/DATABASE.md](docs/DATABASE.md).
 
-Run migrations in order:
-1. `001_initial_schema.sql`
-2. `002_rls_policies.sql`
-3. `003_indexes.sql`
-4. `004_audit_logging.sql`
-5. `005_realtime_setup.sql`
+## Database
+
+Full schema and RLS (who can read/write each table) are in **[docs/DATABASE.md](docs/DATABASE.md)**. To initialize the database, either run **`docs/schema.sql`** once in the Supabase SQL Editor, or apply migrations from `supabase/migrations/` in order.
 
 ## Deployment
 
-The project is configured for Netlify deployment. See `netlify.toml` for configuration.
+The app is set up for Netlify. Configure the same environment variables in the Netlify dashboard and see `netlify.toml` for build settings.
 
 ## License
 

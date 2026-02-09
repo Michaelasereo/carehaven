@@ -12,8 +12,6 @@ export function createClient() {
     throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
   }
 
-  // During SSR/build time (when window is undefined), create a new client each time
-  // This avoids issues with cookies not being available during static generation
   if (typeof window === 'undefined') {
     return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -27,8 +25,6 @@ export function createClient() {
   // On client-side, use singleton pattern for better performance
   if (browserClient) return browserClient
 
-  // Browser client: use supabase-js default (localStorage) session persistence.
-  // This avoids cookie adapter issues and ensures authenticated calls (e.g. Storage signed URLs).
   browserClient = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
@@ -56,7 +52,6 @@ export function createClient() {
   return browserClient
 }
 
-// Utility function to check if session is valid
 export async function getValidSession(): Promise<Session | null> {
   const supabase = createClient()
   

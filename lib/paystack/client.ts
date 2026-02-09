@@ -5,9 +5,9 @@
  * @param reference - Unique transaction reference
  */
 export async function initializePayment(amount: number, email: string, reference: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://carehaven.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
   if (!process.env.NEXT_PUBLIC_APP_URL) {
-    console.warn('⚠️ NEXT_PUBLIC_APP_URL is not set. Falling back to https://carehaven.app for Paystack callback_url.')
+    console.warn('⚠️ NEXT_PUBLIC_APP_URL is not set. Set it for Paystack callback_url.')
   }
 
   const callbackUrl = `${appUrl}/payment/callback`

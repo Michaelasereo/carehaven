@@ -41,12 +41,12 @@
    - **Authorized JavaScript origins**:
      ```
      http://localhost:3000
-     https://kpjwpwjxjqmkayaouycx.supabase.co
+     https://xxxxxx.supabase.co
      ```
    - **Authorized redirect URIs**:
      ```
      http://localhost:3000/auth/callback
-     https://kpjwpwjxjqmkayaouycx.supabase.co/auth/v1/callback
+     https://xxxxxx.supabase.co/auth/v1/callback
      https://your-netlify-domain.netlify.app/auth/callback
      ```
    - Click **Create**
@@ -59,7 +59,7 @@
 
 ### 2.1 Access Supabase Dashboard
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Select your project: **kpjwpwjxjqmkayaouycx**
+2. Select your project: **xxxxxx**
 
 ### 2.2 Enable Google Provider
 1. Navigate to **Authentication** → **Providers**
@@ -73,7 +73,7 @@
    
 2. **Redirect URL**: Supabase will show you a redirect URL like:
    ```
-   https://kpjwpwjxjqmkayaouycx.supabase.co/auth/v1/callback
+   https://xxxxxx.supabase.co/auth/v1/callback
    ```
    **IMPORTANT**: Copy this URL - you'll need it for Step 3!
 
@@ -87,7 +87,7 @@
 3. Click on your OAuth 2.0 Client ID
 4. Under **Authorized redirect URIs**, add:
    ```
-   https://kpjwpwjxjqmkayaouycx.supabase.co/auth/v1/callback
+   https://xxxxxx.supabase.co/auth/v1/callback
    ```
 5. Click **Save**
 
@@ -118,7 +118,7 @@ https://your-app-name.netlify.app
 **Authorized redirect URIs**:
 ```
 https://your-app-name.netlify.app/auth/callback
-https://kpjwpwjxjqmkayaouycx.supabase.co/auth/v1/callback
+https://xxxxxx.supabase.co/auth/v1/callback
 ```
 
 ### 5.2 Update Supabase Redirect URLs
@@ -157,9 +157,9 @@ In Supabase Dashboard → Authentication → URL Configuration:
 
 ## Quick Reference
 
-**Your Supabase Project URL**: `https://kpjwpwjxjqmkayaouycx.supabase.co`
+**Your Supabase Project URL**: `https://xxxxxx.supabase.co`
 
-**Supabase Callback URL**: `https://kpjwpwjxjqmkayaouycx.supabase.co/auth/v1/callback`
+**Supabase Callback URL**: `https://xxxxxx.supabase.co/auth/v1/callback`
 
 **Local Development Callback**: `http://localhost:3000/auth/callback`
 

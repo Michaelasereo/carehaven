@@ -144,7 +144,7 @@ export default async function AdminAppointmentDetailPage({
             <p className="font-medium">{(patient?.blood_group as string) || 'N/A'}</p>
           </div>
         </div>
-        {patient?.allergies && Array.isArray(patient.allergies) && (patient.allergies as string[]).length > 0 && (
+        {patient?.allergies && Array.isArray(patient.allergies) && (patient.allergies as string[]).length > 0 ? (
           <div className="mt-4">
             <p className="text-sm text-gray-600">Allergies</p>
             <div className="flex flex-wrap gap-2 mt-1">
@@ -153,8 +153,8 @@ export default async function AdminAppointmentDetailPage({
               ))}
             </div>
           </div>
-        )}
-        {patient?.chronic_conditions && Array.isArray(patient.chronic_conditions) && (patient.chronic_conditions as string[]).length > 0 && (
+        ) : null}
+        {patient?.chronic_conditions && Array.isArray(patient.chronic_conditions) && (patient.chronic_conditions as string[]).length > 0 ? (
           <div className="mt-4">
             <p className="text-sm text-gray-600">Chronic Conditions</p>
             <div className="flex flex-wrap gap-2 mt-1">
@@ -163,7 +163,7 @@ export default async function AdminAppointmentDetailPage({
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </Card>
 
       {/* Appointment Details */}
@@ -178,9 +178,9 @@ export default async function AdminAppointmentDetailPage({
             <Link href={`/admin/doctors/${appointment.doctor_id}`} className="font-medium hover:text-teal-600">
               {(doctor?.full_name as string) || 'N/A'}
             </Link>
-            {(doctor?.specialty as string) && (
+            {doctor?.specialty ? (
               <p className="text-sm text-gray-500">{doctor.specialty as string}</p>
-            )}
+            ) : null}
           </div>
           <div>
             <p className="text-sm text-gray-600">Scheduled Date</p>

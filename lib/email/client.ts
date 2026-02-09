@@ -36,7 +36,7 @@ export async function sendEmail(
       body: JSON.stringify({
         sender: {
           name: 'Michael from Carehaven',
-          email: 'mycarehaven@carehaven.app',
+          email: process.env.BREVO_SENDER_EMAIL || 'noreply@your-domain.com',
         },
         to: [
           {
@@ -81,8 +81,8 @@ export async function sendEmail(
             errorMessage = `Brevo API error: ${errorJson.message}`
             // Check for specific issues
             if (errorJson.message.includes('sender') || errorJson.message.includes('unverified')) {
-              errorMessage = 'Sender email not verified. Please verify mycarehaven@carehaven.app in Brevo dashboard.'
-              errorDetails.suggestion = 'Go to Brevo Dashboard → Settings → Senders → Verify mycarehaven@carehaven.app'
+              errorMessage = 'Sender email not verified. Please verify your sender email in Brevo dashboard.'
+              errorDetails.suggestion = 'Go to Brevo Dashboard → Settings → Senders → Verify your sender email'
             }
           }
           if (errorJson.code) {
@@ -91,8 +91,8 @@ export async function sendEmail(
         } catch {
           // Not JSON, use raw error
           if (errorText.includes('sender') || errorText.includes('unverified')) {
-            errorMessage = 'Sender email not verified. Please verify mycarehaven@carehaven.app in Brevo dashboard.'
-            errorDetails.suggestion = 'Go to Brevo Dashboard → Settings → Senders → Verify mycarehaven@carehaven.app'
+            errorMessage = 'Sender email not verified. Please verify your sender email in Brevo dashboard.'
+            errorDetails.suggestion = 'Go to Brevo Dashboard → Settings → Senders → Verify your sender email'
           }
         }
       } else if (response.status === 429) {

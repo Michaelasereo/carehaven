@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useUpdateAppointment } from '@/lib/react-query/mutations'
-import { format } from 'date-fns'
+import { formatLagosTime, dateAtNoonWAT } from '@/lib/utils/timezone'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
 import { isTimeAvailable, type AvailabilitySlot } from '@/lib/utils/availability'
@@ -96,8 +96,6 @@ export function RescheduleAppointmentDialog({
     resolver: zodResolver(rescheduleSchema),
   })
 
-  const originalDate = new Date(appointment.scheduled_at)
-
   const onSubmit = async (data: RescheduleFormData) => {
     if (!selectedDate || !selectedTime) {
       return
@@ -107,9 +105,10 @@ export function RescheduleAppointmentDialog({
     setIsSubmitting(true)
 
     try {
-      const scheduledAt = new Date(`${selectedDate}T${selectedTime}`).toISOString()
+      const scheduledDate = new Date(`${selectedDate}T${selectedTime}:00.000+01:00`)
+      const scheduledAt = scheduledDate.toISOString()
 
-      if (new Date(scheduledAt) <= new Date()) {
+      if (scheduledDate <= new Date()) {
         addToast({
           variant: 'destructive',
           title: 'Invalid Date',
@@ -119,11 +118,11 @@ export function RescheduleAppointmentDialog({
         return
       }
 
-      const scheduledDate = new Date(`${selectedDate}T${selectedTime}`)
       const timeStr = selectedTime.length === 5 ? selectedTime : selectedTime.slice(0, 5)
+      const dateForDay = dateAtNoonWAT(selectedDate)
 
       if (availabilitySlots.length > 0) {
-        if (!isTimeAvailable(scheduledDate, timeStr, availabilitySlots)) {
+        if (!isTimeAvailable(dateForDay, timeStr, availabilitySlots)) {
           setSlotValidationError('The selected time is not in the doctor\'s schedule. Please choose an available slot.')
           setIsSubmitting(false)
           return
@@ -158,7 +157,7 @@ export function RescheduleAppointmentDialog({
             userId: appointment.patient_id,
             type: 'appointment',
             title: 'Appointment Rescheduled',
-            body: `Your appointment has been rescheduled to ${new Date(scheduledAt).toLocaleDateString()}`,
+            body: `Your appointment has been rescheduled to ${formatLagosTime(scheduledAt, 'datetime')}`,
             data: { appointment_id: appointment.id },
           }),
         })
@@ -170,7 +169,7 @@ export function RescheduleAppointmentDialog({
               userId: appointment.doctor_id,
               type: 'appointment',
               title: 'Appointment Rescheduled',
-              body: `An appointment has been rescheduled to ${new Date(scheduledAt).toLocaleDateString()}`,
+              body: `An appointment has been rescheduled to ${formatLagosTime(scheduledAt, 'datetime')}`,
               data: { appointment_id: appointment.id },
             }),
           })
@@ -207,7 +206,7 @@ export function RescheduleAppointmentDialog({
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-600">Current appointment:</p>
           <p className="font-medium">
-            {format(originalDate, 'EEEE, MMMM d, yyyy')} at {format(originalDate, 'h:mm a')}
+            {formatLagosTime(appointment.scheduled_at, 'datetime')}
           </p>
         </div>
 

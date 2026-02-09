@@ -17,11 +17,8 @@ export async function GET(request: Request) {
     
     if (error) {
       console.error('Error exchanging code for session:', error)
-      // Check if it's a token verification (from our custom email flow)
       const token = requestUrl.searchParams.get('token')
       if (token) {
-        // This is from our custom email verification, handle it differently
-        // The token verification is handled by /api/auth/verify-email
         return NextResponse.redirect(new URL(`/api/auth/verify-email?token=${token}&email=${requestUrl.searchParams.get('email') || ''}`, baseUrl))
       }
       // For Supabase email verification, redirect with error
@@ -34,17 +31,8 @@ export async function GET(request: Request) {
     }
   }
 
-  // Note: Hash tokens (#access_token=...) are only available client-side
-  // Magic links with hash tokens are handled by Supabase client SDK automatically
-  // If no code parameter and no user session, this might be a magic link
-  // The client SDK should have already processed hash tokens before this route runs
-  
-  // Get the current user (session should exist if magic link was processed client-side)
   const { data: { user }, error: userError } = await supabase.auth.getUser()
-  
   if (userError || !user) {
-    // No session - might be magic link that needs client-side processing
-    // Redirect to a page that will handle hash tokens, or back to sign-in
     return NextResponse.redirect(new URL('/auth/signin', baseUrl))
   }
 

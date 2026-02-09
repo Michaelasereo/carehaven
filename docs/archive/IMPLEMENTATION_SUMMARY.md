@@ -32,7 +32,7 @@
 **File**: `supabase/migrations/025_fix_doctor_view_patients_rls.sql`
 
 **Action Required**: 
-1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/kpjwpwjxjqmkayaouycx/sql/new
+1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/xxxxxx/sql/new
 2. Copy and execute the SQL from `supabase/migrations/025_fix_doctor_view_patients_rls.sql`
 
 **What it fixes**:

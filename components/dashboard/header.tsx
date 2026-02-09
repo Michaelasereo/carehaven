@@ -76,9 +76,6 @@ export function Header() {
       }
 
       if (profileData) {
-        // The API route already ensures the profile matches the authenticated user
-        // via server-side authentication, so we can trust the profile data
-        // Only verify that profileData has an id field
         if (!profileData.id) {
           console.error('[Header] Profile data missing id field:', {
             profileDataKeys: Object.keys(profileData),
@@ -90,8 +87,6 @@ export function Header() {
           return
         }
 
-        // Use profile ID as user ID (they're the same in Supabase - profiles.id references auth.users.id)
-        // This ensures we always use the server-authenticated user, not stale client-side data
         setUser({ 
           id: profileData.id, 
           email: profileData.email || null 

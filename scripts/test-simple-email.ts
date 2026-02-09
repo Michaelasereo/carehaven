@@ -20,7 +20,7 @@ async function testSimple() {
     body: JSON.stringify({
       sender: {
         name: 'Care Haven',
-        email: 'mycarehaven@gmail.com',
+        email: 'noreply@your-domain.com',
       },
       to: [
         {

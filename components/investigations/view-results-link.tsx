@@ -102,8 +102,6 @@ export function ViewResultsLink({ filePath, label = 'View Results', variant = 'l
         throw new Error('Your session has expired. Please refresh the page or sign in again.')
       }
 
-      // Server-side signing (service role) with explicit access check.
-      // This avoids Storage-RLS masking (often returned as "Object not found").
       const controller = new AbortController()
       const timeout = window.setTimeout(() => controller.abort(), 10_000)
       

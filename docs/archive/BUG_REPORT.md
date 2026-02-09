@@ -480,7 +480,7 @@ export default async function DashboardLayout({ children }) {
 
 ### Production
 - **Platform:** Netlify
-- **URL:** https://carehaven.app
+- **URL:** https://your-domain.com
 - **Status:** ✅ Working
 
 ---

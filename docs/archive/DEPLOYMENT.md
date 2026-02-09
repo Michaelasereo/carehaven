@@ -33,7 +33,7 @@ This command will:
 ## Production URL
 
 After successful deployment, your site will be live at:
-- **Production**: https://carehaven.app
+- **Production**: https://your-domain.com
 
 ## Alternative Deployment Methods
 

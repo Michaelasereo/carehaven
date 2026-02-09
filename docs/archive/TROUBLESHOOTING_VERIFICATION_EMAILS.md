@@ -45,7 +45,7 @@ Since you mentioned SMTP is disabled, you can re-enable it:
    - **Port**: `587` (TLS)
    - **Username**: Your Brevo email or SMTP username
    - **Password**: Your Brevo SMTP key (`xsmtpsib-...`)
-   - **Sender email**: `mycarehaven@gmail.com`
+   - **Sender email**: `support@your-domain.com`
    - **Sender name**: Care Haven
 3. Save and test
 

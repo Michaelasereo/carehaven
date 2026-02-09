@@ -96,7 +96,7 @@ npx netlify-cli deploy --prod --timeout=300
 ## 🧪 Testing
 
 After deployment, verify:
-1. Site loads correctly: `https://carehaven.app`
+1. Site loads correctly: `https://your-domain.com`
 2. SSR pages work (check admin, doctor, patient dashboards)
 3. Static assets load (images, fonts, CSS)
 4. API routes function correctly
